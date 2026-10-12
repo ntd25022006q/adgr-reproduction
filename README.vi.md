@@ -86,8 +86,8 @@ GPU mới có.
 @article{nguyentienha2026adgr,
   title   = {Adaptive Directed Graph Retrieval for Graph-Based
              Retrieval-Augmented Generation},
-  author  = {{Nguyen Tien Ha} and Vu-Duy, Linh and Nguyen-Thi, Minh-Huyen
-             and Le-Ngoc, Toan and Kim, Dinh-Thai},
+  author  = {{Nguyen Tien Ha}, Vu Duy Linh, Nguyen Thi Minh Huyen,
+             Le Ngoc Toan and Kim Dinh Thai},
   journal = {Applied Intelligence (submitted)},
   year    = {2026}
 }
