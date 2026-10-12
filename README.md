@@ -1,91 +1,74 @@
-# Rebuilding the ADGR Medical Search System — Full Reproduction
+# ADGR Reproduction — Vietnamese Medical GraphRAG
 
-**🌐 Language / Ngôn ngữ: [English](README.md) | [Tiếng Việt](README.vi.md)**
-**📄 Reports / Báo cáo: [report.pdf (EN)](report/report.pdf) | [report_vi.pdf (VI)](report/report_vi.pdf)**
+**🌐 Language: [English](README.md) | [Tiếng Việt](README.vi.md)**
+**📄 Full reports: [report.pdf (EN)](report/report.pdf) | [report_vi.pdf (VI)](report/report_vi.pdf)**
 
-We rebuilt, from scratch, the ADGR system from the paper by **Nguyen Tien Ha
-et al.** (submitted to *Applied Intelligence*). ADGR is a search system that
-answers Vietnamese medical questions by looking up evidence in a knowledge
-graph (a network of medical facts: diseases, drugs, symptoms, and how they
-connect).
+Independent, from-scratch reproduction of *Adaptive Directed Graph Retrieval
+for Graph-Based Retrieval-Augmented Generation* (submitted to *Applied
+Intelligence*): a system that answers Vietnamese medical questions by
+retrieving evidence from a knowledge graph of diseases, drugs, symptoms and
+their relations.
 
-**Bottom line:** our rebuilt system works the same way as the paper's system,
-ranks methods in the same order, and matches most of its numbers. Where our
-numbers differ, we measured exactly why — nothing is hidden.
+## Results vs the paper
 
-- Paper: *Adaptive Directed Graph Retrieval for Graph-Based
-  Retrieval-Augmented Generation*
-- Author materials: [medical article collection (HF)](https://huggingface.co/datasets/vuduylinh150804/vietmed-crawled-corpus)
-  · [reference code](https://github.com/Jmhzbmcn2/Graduation-Thesis)
-  · [judge instructions + extraction guide](https://github.com/Jmhzbmcn2/adgr-supplementary)
-
-## What we built (plain words)
-
-1. **Collected 1,934 medical articles** from YouMed (the paper used 1,932).
-2. **Split them into 15,837 short passages** (paper: 17,236).
-3. **Extracted a knowledge graph**: 52,578 medical facts-nodes (paper: 49,274)
-   and 106,279 connections between them (paper: 106,666).
-4. **Ran 300 test questions** through 5 versions of the search (full system +
-   4 versions with one part removed) plus 2 baseline systems.
-5. **Scored every answer** with an AI judge (5 independent rounds) and with
-   standard search metrics. **8 result tables** in `results/FINAL_v2.json`.
-
-## Results vs the paper (plain words)
-
-| # | What was measured | Paper | Ours | Meaning |
+| Table | Metric | Paper | Ours | Reading |
 |---|---|---|---|---|
-| 1 | Graph size + quality | 17k chunks, 93.6% in-schema | 15.8k chunks, 91.3% in-schema | Almost the same graph |
-| 3 | Finding the right evidence (Hit@10) | 0.71 | 0.79 / 0.68 (2 indexes) | Same ballpark |
-| 4 | Answer quality (RAGAS-like) | 0.88 | 0.64 | Lower — see honest analysis below |
-| 5 | Judge score, ADGR overall | 0.79 | 0.86 (ours) / 0.78 (paper prompt) | Same ranking: ADGR on top |
-| 6 | Cost: input words per question | 4,490 | 3,441 | Ours is cheaper |
-| 7 | Removing parts hurts scores | yes, spread 0.60–0.88 | yes, spread confirmed | Same conclusion |
-| 8 | Example query: small focused graph | 5 nodes / 57 links | 12–14 nodes / ~40 links | Same compact style |
+| 1 | chunks / entities / relations | 17236 / 49274 / 106666 | 15837 / 52578 / 106279 | 92–107%, same scale |
+| 1 | DSER / SCR / LCR | 0.936 / 0.928 / 0.906 | 0.913 / 0.884 / 0.816 | close |
+| 3 | Hit@10, full ADGR | 0.71 | 0.79 / 0.68 (two indexes) | same range |
+| 4 | RAGAS overall ADGR | 0.8792 | 0.64 equiv. (decomposed: two-step 0.77) | gap measured, see report |
+| 5 | ADGR overall (judge) | 0.7921 | 0.858 (ours) / 0.778 (orig. prompt) | ranking kept |
+| 6 | input tokens/row | 4490.5 | 3441.4 | cheaper |
+| 7 | 4 ablations | spread 0.60–0.88 | spread confirmed | same directions |
+| 8 | Aescin: 5 ent / 57 rel | — | 12–14 ent / ~40 rel | same compact regime |
 
-**About Table 4 (0.64 vs 0.88):** we proved by experiment that ~60% of this
-gap comes from our one-step judging shortcut (a proper two-step re-check
-scores 0.77 on the same data). The rest comes from a stricter judge model and
-noisier extraction. Short answers match the paper almost exactly (0.89). All
-measured, all disclosed — see `report/` for the full analysis.
+Every difference is quantified by cause in the report. Nothing mocked,
+nothing cherry-picked — including the numbers below the paper's.
 
-## What's inside this repo
+## Repository layout
 
 ```
 ├── README.md / README.vi.md  # this file, English + Vietnamese
-├── AGENTS.md                  # working rules distilled from 41 fixed bugs
+├── AGENTS.md                  # operating rules from 43 verified fixes
 ├── LICENSE                    # MIT
-├── report/                    # academic reports (EN + VI, LaTeX + PDF) + 10 charts
-├── src/                       # the pipeline: search, evaluate, run-all script
-├── results/                   # every number (8 tables) + all raw answers/judgments
-└── corpus/                    # articles, passages, extraction (<100MB each)
+├── report/                    # full academic reports (EN + VI, LaTeX + PDF) + 10 figures
+├── src/                       # pipeline: retrieval, evaluation, 16-stage chain
+├── results/                   # FINAL_v2.json (8 tables) + all raw answers/judgments
+└── corpus/                    # articles, chunks, extraction, contexts (<100MB each)
 ```
 
-Big files live elsewhere by design (too large for GitHub): author index
-matrices (2.3 GB), rebuilt index (960 MB), models (9.4 GB). Rebuild them with
-`python -u src/kg_build_paper.py` then `python -u src/chain_full.py`.
+Large artifacts live outside GitHub by design (with rebuild instructions in
+`AGENTS.md`): author index matrices (2.3 GB), rebuilt index (960 MB), model
+weights (9.4 GB).
 
-## What we used instead of the paper (all disclosed)
+## Method in brief
 
-| Paper | Ours | Effect measured? |
+Query → LLM keywords → hybrid anchors (BM25 + dense, overlap bonus) →
+one-hop edges scored and filtered by query relevance → 4-source chunk merge →
+cross-encoder rerank top-10 → Qwen2.5-14B generation (temp 0) → judged by
+Hit/MRR/nDCG, official-algorithm RAGAS, and 4-dimension × 5-run LLM judging.
+
+## Documented substitutions
+
+| Paper | Here | Measured effect |
 |---|---|---|
-| GPT-5.5 judge | solar-pro4, same 5-round protocol | Yes: −0.09 scale shift, ranking unchanged |
-| 7 paid test models | 7 free models (different set) | Reference only, not ranked |
-| Hand-labeled gold evidence | 2 automatic proxies (agree with each other) | Yes, documented |
-| Official RAGAS library | Same official algorithms, reimplemented | Components match; faithfulness differs (see above) |
+| GPT-5.5 judge | solar-pro4, same protocol | −0.09 scale shift, rankings kept |
+| 7 paid standalone LLMs | 7 free models (different set) | references only |
+| Manual gold labels | dual automatic proxies (agree) | disclosed |
+| Official RAGAS library | official algorithms reimplemented | components match |
 
-## Run it yourself
+## Reproduce
 
 ```bash
 python -u src/kg_build_paper.py   # build the knowledge-graph index
-python -u src/chain_full.py       # run everything (saves progress per question,
-                                  # resumes after interruption, checks each stage)
+python -u src/chain_full.py       # run everything (per-question checkpoints,
+                                  # resume-safe, validated stage gates)
 ```
 
 Needs: 1 GPU with 24GB, vLLM + ollama, Python 3.11, an Upstage (Solar) key
-(~$5 for the full judging protocol). Read `AGENTS.md` first — every rule
-there exists because breaking it once cost hours.
+(~$5 for the full judging protocol). Read `AGENTS.md` first.
 
-## Cite
+## Cite the original paper
 
 ```bibtex
 @article{nguyentienha2026adgr,
@@ -97,7 +80,3 @@ there exists because breaking it once cost hours.
   year    = {2026}
 }
 ```
-
-*Everything here is reproducible from the scripts included. No mocked data,
-no cherry-picked rows — including the numbers that look worse than the
-paper's, with measured explanations.*

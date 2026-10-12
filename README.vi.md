@@ -1,72 +1,59 @@
-# Dựng lại hệ thống tìm kiếm y khoa ADGR — Tái hiện đầy đủ
+# Tái hiện ADGR — GraphRAG Y khoa tiếng Việt
 
 **🌐 Ngôn ngữ / Language: [Tiếng Việt](README.vi.md) | [English](README.md)**
-**📄 Báo cáo / Reports: [report_vi.pdf (VI)](report/report_vi.pdf) | [report.pdf (EN)](report/report.pdf)**
+**📄 Báo cáo đầy đủ / Reports: [report_vi.pdf (VI)](report/report_vi.pdf) | [report.pdf (EN)](report/report.pdf)**
 
-Chúng tôi dựng lại từ đầu hệ thống ADGR trong paper của **Nguyen Tien Ha và
-cộng sự** (nộp tạp chí *Applied Intelligence*). ADGR là hệ thống trả lời câu
-hỏi y khoa tiếng Việt bằng cách tra cứu chứng cứ trong đồ thị tri thức (mạng
-lưới các sự thật y khoa: bệnh, thuốc, triệu chứng và mối liên hệ giữa chúng).
+Tái hiện độc lập, từ đầu, hệ thống *Adaptive Directed Graph Retrieval*
+trong paper nộp tạp chí *Applied Intelligence*: hệ thống trả lời câu hỏi y
+khoa tiếng Việt bằng cách tra cứu chứng cứ trong đồ thị tri thức (bệnh,
+thuốc, triệu chứng và mối liên hệ).
 
-**Kết luận trước:** hệ thống ta dựng hoạt động giống hệ paper, xếp hạng các
-phương pháp giống hệt, và khớp hầu hết con số. Chỗ nào khác biệt đều đã đo
-nguyên nhân — không giấu gì.
+## Kết quả so với paper
 
-- Paper: *Adaptive Directed Graph Retrieval for Graph-Based
-  Retrieval-Augmented Generation*
-- Tài nguyên tác giả: [kho văn bản y khoa (HF)](https://huggingface.co/datasets/vuduylinh150804/vietmed-crawled-corpus) · [code tham khảo](https://github.com/Jmhzbmcn2/Graduation-Thesis) · [prompt chấm + hướng dẫn trích xuất](https://github.com/Jmhzbmcn2/adgr-supplementary)
-
-## Đã làm gì (nói dễ hiểu)
-
-1. **Thu thập 1.934 bài báo y khoa** (paper: 1.932 bài).
-2. **Cắt thành 15.837 đoạn ngắn** (paper: 17.236 đoạn).
-3. **Trích xuất đồ thị tri thức**: 52.578 nút sự thật (paper: 49.274) và
-   106.279 mối liên hệ (paper: 106.666).
-4. **Chạy 300 câu hỏi thi** qua 5 phiên bản hệ thống (bản đầy đủ + 4 bản tắt
-   bớt từng bộ phận) cùng 2 hệ thống đối chứng.
-5. **Chấm mọi đáp án** bằng AI giám khảo (5 lần độc lập) và bằng các thước đo
-   tìm kiếm chuẩn. **8 bảng kết quả** nằm ở `results/FINAL_v2.json`.
-
-## Kết quả so với paper (nói dễ hiểu)
-
-| # | Đo cái gì | Paper | Ta | Nghĩa là gì |
+| Bảng | Chỉ số | Paper | Ta | Đọc thế nào |
 |---|---|---|---|---|
-| 1 | Quy mô đồ thị | 17k đoạn, 93.6% đúng schema | 15.8k đoạn, 91.3% đúng schema | Gần như cùng đồ thị |
-| 3 | Tìm đúng chứng cứ (Hit@10) | 0.71 | 0.79 / 0.68 (2 index) | Cùng tầm |
-| 4 | Chất lượng RAGAS tổng | 0.88 | 0.64 (tương đương) | Thấp hơn — đã mổ nguyên nhân bên dưới |
-| 5 | Giám khảo chấm ADGR | 0.79 | 0.86 (ta) / 0.78 (prompt gốc) | Thứ hạng giữ nguyên |
-| 6 | Chi phí: chữ/question | 4.490 | 3.441 | Ta rẻ hơn |
-| 7 | Tắt bộ phận → điểm tụt | có, tản 0.60–0.88 | có, tản đúng hướng | Cùng kết luận |
-| 8 | Ví dụ Aescin gọn | 5 nút / 57 links | 12–14 nút / ~40 links | Cùng kiểu gọn |
+| 1 | chunks / ent / rel | 17236 / 49274 / 106666 | 15837 / 52578 / 106279 | 92–107%, cùng tầm |
+| 1 | DSER / SCR / LCR | 0.936 / 0.928 / 0.906 | 0.913 / 0.884 / 0.816 | gần |
+| 3 | Hit@10 full | 0.71 | 0.79 / 0.68 (2 index) | cùng tầm |
+| 4 | RAGAS tổng | 0.8792 | 0.64 (tương đương, đã phân rã) | xem phân tích gap |
+| 5 | ADGR overall | 0.7921 | 0.858 (ta) / 0.778 (prompt gốc) | giữ thứ hạng |
+| 6 | tokens/row | 4490.5 | 3441.4 | rẻ hơn |
+| 7 | 4 ablations | tản 0.60–0.88 | tản đúng hướng | cùng kết luận |
+| 8 | Aescin 5ent/57rel | — | 12–14ent/~40rel | cùng kiểu gọn |
 
-**Về Tab.4 (0.64 vs 0.88):** thí nghiệm chứng minh ~60% gap do ta chấm gộp
-1 bước thay vì 2 bước chuẩn (chấm 2 bước đạt 0.77 trên cùng dữ liệu). Phần còn
-lại do giám khảo nghiêm hơn + extraction nhiễu hơn. Đáp án ngắn khớp paper
-(0.89). Xem phân tích đầy đủ trong `report/`.
+Mọi chênh lệch đều có nguyên nhân đo được trong báo cáo. Không mock số,
+không cherry-pick hàng, không bịa số.
 
 ## Trong repo có gì
 
 ```
 ├── README.md / README.vi.md  # file này, Anh + Việt
-├── AGENTS.md                  # kỷ luật làm việc đúc từ 41 lỗi đã sửa
+├── AGENTS.md                  # kỷ luật vận hành đúc từ 43 lỗi đã sửa
 ├── LICENSE                    # MIT
 ├── report/                    # báo cáo học thuật (Anh + Việt, LaTeX + PDF) + 10 hình
-├── src/                       # pipeline: tìm kiếm, đánh giá, script chạy all
-├── results/                   # 8 bảng FINAL + toàn bộ đáp án/chấm thô
+├── src/                       # pipeline: tìm kiếm, đánh giá, chain 16 stages
+├── results/                   # FINAL_v2.json (8 bảng) + toàn bộ đáp án/chấm thô
 └── corpus/                    # bài báo/passages/trích xuất/contexts (<100MB mỗi file)
 ```
 
-File lớn để ngoài GitHub đúng chuẩn (kèm hướng dẫn dựng lại): index tác giả
-(2.3GB), index tự dựng (960MB), models (9.4GB). Chạy `chain_full.py` để dựng.
+File lớn để ngoài GitHub đúng chuẩn (kèm hướng dẫn dựng lại trong
+`AGENTS.md`): index tác giả (2.3GB), index tự dựng (960MB), models (9.4GB).
 
-## Cái gì khác paper (khai hết, không giấu)
+## Phương pháp vắn tắt
 
-| Paper | Ta | Đã đo ảnh hưởng? |
+Câu hỏi → từ khóa LLM → neo lai (BM25 + dense, thưởng chồng lấp) → cạnh
+1-bước chấm và lọc theo truy vấn → gộp 4 nguồn chunk → rerank top-10 →
+Qwen2.5-14B sinh đáp án (temp 0) → chấm Hit/MRR/nDCG, RAGAS 4 thành phần,
+4 chiều × 5 lần, tokens/latency.
+
+## Thay thế đã công khai
+
+| Paper | Ta | Đã đo ảnh hưởng |
 |---|---|---|
-| Giám khảo GPT-5.5 | solar-pro4, cùng protocol 5 lần | Rồi: lệch thang −0.09, thứ hạng giữ nguyên |
-| 7 models trả phí | 7 models miễn phí (khác hẳn) | Chỉ tham khảo, không xếp hạng |
-| Gold labels gán tay | 2 proxy tự động (đồng thuận nhau) | Rồi, ghi trong báo cáo |
-| Thư viện RAGAS gốc | Cài lại đúng thuật toán gốc | Thành phần khớp; faithfulness khác (xem trên) |
+| Giám khảo GPT-5.5 | solar-pro4, cùng protocol | lệch thang −0.09, giữ thứ hạng |
+| 7 models trả phí | 7 models miễn phí (khác hẳn) | chỉ tham khảo |
+| Gold labels gán tay | 2 proxy tự động (đồng thuận) | đã disclose |
+| Thư viện RAGAS gốc | Cài lại đúng thuật toán gốc | thành phần khớp |
 
 ## Chạy lại
 
@@ -77,10 +64,9 @@ python -u src/chain_full.py       # chạy toàn bộ (lưu từng câu, resume 
 ```
 
 Cần: 1 GPU 24GB, vLLM + ollama, Python 3.11, key Upstage (~$5 cho toàn bộ
-protocol chấm). Đọc `AGENTS.md` trước — mỗi luật ở đó đều trả giá bằng giờ
-GPU mới có.
+protocol chấm). Đọc `AGENTS.md` trước.
 
-## Trích dẫn
+## Trích dẫn paper gốc
 
 ```bibtex
 @article{nguyentienha2026adgr,
@@ -92,6 +78,3 @@ GPU mới có.
   year    = {2026}
 }
 ```
-
-*Mọi số ở đây đều chạy lại được từ scripts kèm theo. Không mock số, không
-cherry-pick hàng — kể cả những số xấu hơn paper, đều có nguyên nhân đo được.*
