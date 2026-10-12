@@ -1,8 +1,8 @@
 # ADGR Reproduction — Vietnamese Medical GraphRAG
 
 **🌐 Language: [English](README.md) | [Tiếng Việt](README.vi.md)**
-**📄 Full report (VI, PDF): [report_vi.pdf](report/report_vi.pdf) — 12 pages, 11 figures, every figure with a reading guide**
-**📝 English version (LaTeX source, sentence-aligned translation of the VI report): [report.tex](report/report.tex)**
+**📄 Full reports: [report.pdf (EN)](report/report.pdf) | [report_vi.pdf (VI)](report/report_vi.pdf) — 12–13 pages each, every figure with a reading guide**
+**📝 LaTeX sources (VI master, EN sentence-aligned translation): [report.tex](report/report.tex) | [report_vi.tex](report/report_vi.tex)**
 
 Independent, from-scratch reproduction of *Adaptive Directed Graph Retrieval*
 (paper submitted to *Applied Intelligence*): answering Vietnamese medical
@@ -90,7 +90,7 @@ high and stable.
 <img src="report/figs/fig_tab5_prompt.png" width="700">
 
 Original prompt scores ~0.08 lower (ADGR 0.778) with **zero rank flips across
-10 methods**. Verbose models (14B pair near 500 words/answer, cf-llama 647)
+10 methods**. Longest group (cf-llama ~140 words/answer, qwen2.5-14b ~104)
 drop hardest; concise ones barely move.
 
 ## Figure 9 — Cheaper than paper on every axis (Table 6)

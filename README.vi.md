@@ -1,8 +1,8 @@
 # Tái hiện ADGR — GraphRAG Y khoa tiếng Việt
 
 **🌐 Ngôn ngữ / Language: [Tiếng Việt](README.vi.md) | [English](README.md)**
-**📄 Báo cáo đầy đủ (VI, PDF): [report_vi.pdf](report/report_vi.pdf) — 12 trang, 11 hình, hình nào cũng có hướng dẫn đọc**
-**📝 Bản Anh (nguồn LaTeX, dịch 1:1 từ bản Việt): [report.tex](report/report.tex)**
+**📄 Báo cáo đầy đủ: [report.pdf (EN)](report/report.pdf) | [report_vi.pdf (VI)](report/report_vi.pdf) — 12–13 trang mỗi bản, hình nào cũng có hướng dẫn đọc**
+**📝 Nguồn LaTeX (bản Việt là gốc, bản Anh dịch câu-đối-câu): [report.tex](report/report.tex) | [report_vi.tex](report/report_vi.tex)**
 
 Tái hiện độc lập, từ đầu, hệ thống *Adaptive Directed Graph Retrieval*
 (paper nộp tạp chí *Applied Intelligence*): trả lời câu hỏi y khoa tiếng Việt
@@ -87,7 +87,7 @@ vừa cao vừa ổn định.
 <img src="report/figs/fig_tab5_prompt.png" width="700">
 
 Prompt gốc thấp hơn ~0,08 (ADGR 0,778) nhưng **0 đảo hạng trên 10 phương pháp**.
-Mô hình dài dòng (14B ~500 từ/câu, cf-llama 647 từ) rớt mạnh nhất; mô hình ngắn
+Nhóm dài nhất (cf-llama ~140 từ/câu, qwen2.5-14b ~104 từ) rớt mạnh nhất; mô hình ngắn
 gần như không đổi.
 
 ## Hình 9 — Rẻ hơn paper mọi mặt (Bảng 6)

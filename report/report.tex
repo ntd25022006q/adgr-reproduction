@@ -64,7 +64,8 @@ what to conclude, and how to answer follow-up questions.
 via alternate sources, 1 dropped with a written record). Hard part: 429
 rate-limits forced retries spread over many hours.
 \item \textbf{Chunking:} the authors' H2 code (\texttt{thesis\_src}), so the
-algorithm matches; 8\% missing from 5 dead URLs + doc filtering. Hard part:
+algorithm matches; 15,837 chunks (min 126, median 800, mean 1,129 chars,
+$\sim$357 tokens). 8\% missing from 5 dead URLs + doc filtering. Hard part:
 the chunker is not released with the paper, so this pipeline step depends on
 external code (documented in the README).
 \item \textbf{KG:} Qwen2.5-14B temp 0 over every chunk $\rightarrow$ 52,578
@@ -286,8 +287,8 @@ judging to flatter our numbers would be metric gaming --- refused on principle.
 ADGR 0.858 vs paper 0.792; order ADGR $\approx$ Mix $>$ Hybrid $>$ standalone
 under BOTH prompts (original prompt: 0.778/0.781/0.740). The original prompt
 scores $\sim$0.08 lower (anti-verbosity guard hits long answers) --- measured
-on 3,000 judgments across 10 methods. Mix $\approx$ ADGR (gap 0.0004): 20\%
-of questions yield identical/near-identical answers (shared temp-0 generator +
+on 3,000 judgments across 10 methods. Mix $\approx$ ADGR (gap 0.0004): 5.3\%
+identical, 23\% highly similar (overlap $\ge$0.8; shared temp-0 generator +
 overlapping contexts) --- a property of every same-generator RAG comparison,
 the paper's included.
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab5.png}\end{center}
@@ -299,9 +300,9 @@ line sits below. \textit{On ``why above paper'':} different judge calibration
 (measured $\sim$0.08 with the original prompt), identical rankings, so
 comparison conclusions stand on any scale.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab5_prompt.png}\end{center}
-\textit{Figure 8 in depth:} two bars per model by prompt. Verbose models (the
-14B pair near 500 words per answer, cf-llama at 647) drop hardest under the
-original prompt; concise ones barely move. \textit{Conclusion:} the verbosity guard in
+\textit{Figure 8 in depth:} two bars per model by prompt. The longest group
+(cf-llama $\sim$140 words per answer, qwen2.5-14b $\sim$104) drops hardest
+under the original prompt; concise ones barely move. \textit{Conclusion:} the verbosity guard in
 the original prompt works as designed; results are robust to prompt wording
 (10 methods, zero rank flips).
 

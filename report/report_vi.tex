@@ -61,8 +61,8 @@ câu hỏi phản biện ra sao.
 \item \textbf{Corpus:} crawl 1.934 bài y khoa (5 URL chết, cứu 4 bằng nguồn
 thay thế, 1 bỏ có ghi rõ). Khó: rate-limit 429 nên phải rải retry nhiều giờ.
 \item \textbf{Chunking:} dùng code H2 của tác giả (\texttt{thesis\_src}) nên
-khớp thuật toán; thiếu 8\% do 5 URL chết + lọc doc. Khó: tác giả không công bố
-kèm repo nên đường chunker phụ thuộc code ngoài (đã ghi rõ trong README).
+khớp thuật toán; 15.837 chunk (min 126, median 800, mean 1.129 ký tự, $\sim$357
+token). Thiếu 8\% do 5 URL chết + lọc doc.
 \item \textbf{KG:} Qwen2.5-14B temp 0 trích từng chunk $\rightarrow$ 52.578
 entity / 106.279 relation (bài báo: 49.274 / 106.666); trung bình 3,3 entity
 riêng/chunk (chunk dày nhất: 171 lượt trích). Khó: 15.837 chunk qua
@@ -266,9 +266,9 @@ gian lận chỉ số --- từ chối vì nguyên tắc.
 ADGR 0,858 so với bài báo 0,792; thứ tự ADGR $\approx$ Mix $>$ Hybrid $>$
 standalone dưới CẢ 2 prompt (prompt gốc: 0,778/0,781/0,740). Prompt gốc thấp
 hơn $\sim$0,08 (cơ chế phạt dài dòng đánh câu dài) --- đo trên 3.000 lượt chấm
-10 phương pháp. Mix $\approx$ ADGR (cách 0,0004): 20\% câu hai bản giống
-hệt/gần giống (chung generator temp 0 + ngữ cảnh trùng) --- đặc tính của mọi
-so sánh RAG chung máy sinh, bài báo cũng vậy.
+10 phương pháp. Mix $\approx$ ADGR (cách 0,0004): 5,3\% câu giống hệt, 23\%
+tương đồng cao (overlap $\ge$0,8; chung generator temp 0 + ngữ cảnh trùng)
+--- đặc tính của mọi so sánh RAG chung máy sinh, bài báo cũng vậy.
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab5.png}\end{center}
 \textit{Hình 7 đọc kỹ:} cột = mean 5 run, râu = SEM (ổn định giữa các lượt: râu
 ngắn nghĩa là chấm thêm 5 lượt số vẫn gần như cũ). Cột ADGR cao nhất với râu
@@ -277,9 +277,9 @@ ngắn thứ hai (SEM 0,046 so với Mix 0,042; Hybrid 0,064) --- vừa cao vừ
 (đã đo $\sim$0,08 với prompt gốc), thứ hạng giống hệt, kết luận so sánh đứng
 vững bất kể thang.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab5_prompt.png}\end{center}
-\textit{Hình 8 đọc kỹ:} mỗi mô hình 2 cột theo prompt. Mô hình dài dòng (14B
-$\sim$500 từ/câu, cf-llama 647 từ) rớt mạnh nhất dưới prompt gốc, mô hình ngắn
-gần như không đổi. \textit{Kết luận:} cơ chế phạt dài dòng của prompt gốc hoạt
+\textit{Hình 8 đọc kỹ:} mỗi mô hình 2 cột theo prompt. Nhóm dài nhất (cf-llama
+$\sim$140 từ/câu, qwen2.5-14b $\sim$104 từ) rớt mạnh nhất dưới prompt gốc, mô
+hình ngắn gần như không đổi. \textit{Kết luận:} cơ chế phạt dài dòng của prompt gốc hoạt
 động đúng thiết kế; kết quả bền với cách viết prompt (10 phương pháp, 0 đảo
 hạng).
 
