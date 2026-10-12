@@ -3,6 +3,7 @@
 **🌐 Ngôn ngữ / Language: [Tiếng Việt](README.vi.md) | [English](README.md)**
 **📄 Báo cáo đầy đủ: [report.pdf (EN)](report/report.pdf) | [report_vi.pdf (VI)](report/report_vi.pdf) — 12–13 trang mỗi bản, hình nào cũng có hướng dẫn đọc**
 **📝 Nguồn LaTeX (bản Việt là gốc, bản Anh dịch câu-đối-câu): [report.tex](report/report.tex) | [report_vi.tex](report/report_vi.tex)**
+**📊 Slide thuyết trình (khái quát): [slides_ADGR.pptx](report/slides_ADGR.pptx)**
 
 Tái hiện độc lập, từ đầu, hệ thống *Adaptive Directed Graph Retrieval*
 (paper nộp tạp chí *Applied Intelligence*): trả lời câu hỏi y khoa tiếng Việt

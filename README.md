@@ -3,6 +3,7 @@
 **🌐 Language: [English](README.md) | [Tiếng Việt](README.vi.md)**
 **📄 Full reports: [report.pdf (EN)](report/report.pdf) | [report_vi.pdf (VI)](report/report_vi.pdf) — 12–13 pages each, every figure with a reading guide**
 **📝 LaTeX sources (VI master, EN sentence-aligned translation): [report.tex](report/report.tex) | [report_vi.tex](report/report_vi.tex)**
+**📊 Defense slides (VI, overview): [slides_ADGR.pptx](report/slides_ADGR.pptx)**
 
 Independent, from-scratch reproduction of *Adaptive Directed Graph Retrieval*
 (paper submitted to *Applied Intelligence*): answering Vietnamese medical
