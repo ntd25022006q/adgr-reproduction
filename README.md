@@ -180,6 +180,12 @@ Needs: 1 GPU with 24GB, vLLM + ollama, Python 3.11, an Upstage (Solar) key
 (~$5 for the full judging protocol). Read `AGENTS.md` first — every rule
 there exists because violating it cost GPU hours or corrupted a table.
 
+> KG-build note: `src/paper_chunker.py` calls the authors' chunking code
+> (`thesis_src`, external, not redistributed) and `src/extract_paper_full.py`
+> needs the 3 prompt files `tmp/ext_*.txt` (authors' extraction prompt). Every
+> output of this path (`corpus/chunks_paper.json`, extraction, index) already
+> ships in the repo, so the chain skips the KG-build stage when outputs exist.
+
 ## Cite the original paper
 
 ```bibtex

@@ -174,6 +174,12 @@ Cần: 1 GPU 24GB, vLLM + ollama, Python 3.11, key Upstage (~$5 cho toàn bộ
 protocol chấm). Đọc `AGENTS.md` trước — mỗi quy tắc ở đó tồn tại vì vi phạm nó
 từng tốn hàng giờ GPU hoặc làm hỏng cả bảng số.
 
+> Ghi chú tái hiện KG: `src/paper_chunker.py` gọi code chunking của tác giả
+> (`thesis_src`, ngoài repo, không công bố lại) và `src/extract_paper_full.py`
+> cần 3 file prompt `tmp/ext_*.txt` (prompt trích của tác giả). Mọi output của
+> đường này (`corpus/chunks_paper.json`, extraction, index) đã có sẵn trong
+> repo nên chain bỏ qua stage dựng KG khi output đầy đủ.
+
 ## Trích dẫn paper gốc
 
 ```bibtex
