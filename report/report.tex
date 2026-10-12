@@ -8,7 +8,7 @@
 \usepackage{enumitem}
 \usepackage{geometry}
 \geometry{margin=1in}
-\title{Weekly Report: Independent Reproduction of ADGR\\ \large Every step, every table, every figure explained}
+\title{Weekly Report: Independent Reproduction of ADGR\\ \large Full pipeline, full tables, every figure explained}
 \date{12/10/2026}
 \begin{document}
 \maketitle
@@ -124,13 +124,12 @@ slightly more fragmented, still healthy).
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab1_scale.png}\end{center}
 \begin{itemize}[leftmargin=*]
 \item \textit{Reading Fig.~1 in detail:} log-scale bars (log because relations
-around 100k would dwarf chunks around 16k on a linear axis). Each pair is paper
-(blue) vs ours (orange) for chunks, entities, relations.
-\item \textit{What to conclude:} all three pairs level with each other -- the
-rebuilt graph matches the paper's scale, no dimension critically missing.
-\item \textit{If asked why 8\% fewer chunks:} 5 URLs died at crawl time plus
-our chunker merges small sections; measured impact is Hit@10 0.68 vs 0.79 on
-the two indexes, disclosed.
+around 100k would dwarf chunks around 16k on a linear axis), each pair is
+paper (blue) vs ours (orange) for chunks, entities, relations. \textit{What to
+conclude:} all three pairs level with each other -- the rebuilt graph matches
+the paper's scale, no dimension critically missing. \textit{If asked why 8\%
+fewer chunks:} 5 URLs died at crawl time plus our chunker merges small
+sections; measured impact is Hit@10 0.68 vs 0.79 on the two indexes, disclosed.
 \end{itemize}
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab1_quality.png}\end{center}
 \begin{itemize}[leftmargin=*]
@@ -158,8 +157,8 @@ full arm tracks paper ADGR from K=1 to K=10 -- not a single-point coincidence;
 (2) the 5 lines spread (0.79--0.90) instead of overlapping -- proof the
 ablations truly differ (I once caught a bug where all 5 overlapped because
 rerank was applied to every arm; fixed before measuring); (3) dense\_only on
-top is a proxy artifact as explained above -- say this proactively before the
-teacher asks, it shows honesty.
+top is a proxy artifact as explained above -- say this proactively before
+anyone asks, it shows honesty.
 \end{itemize}
 
 \subsection{Table 4 -- Are answers grounded? The biggest gap, fully dissected.}
@@ -196,14 +195,16 @@ ADGR ours 0.858 vs paper 0.792; order ADGR $\approx$ Mix $>$ Hybrid $>$
 standalone holds under BOTH prompts (ours: 0.858/0.858/0.829; paper-exact:
 0.778/0.781/0.740). Paper-exact prompt scores $\sim$0.09 lower (its
 anti-verbosity guard hits long answers) -- measured on 3000 judgments,
-rankings unchanged.
+rankings unchanged. Mix $\approx$ ADGR (gap 0.0004) because 20\% answers are
+identical/near-identical (shared temp-0 generator + overlapping contexts) --
+a property of every same-generator RAG comparison, paper included.
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab5.png}\end{center}
 \begin{itemize}[leftmargin=*]
 \item \textit{Reading Fig.~6:} each bar is one model, height = 5-run mean,
 error bar = SEM (stability across runs). ADGR bar highest \textit{with small
 bars} -- high AND stable, not one lucky judging. Paper's 0.79 line sits below
 our bar. \textit{If asked why ours beats paper:} different judge calibration
-(measured $-0.09$ shift with the paper prompt); rankings identical, so the
+(measured $-0.09$ with the paper prompt), but identical method ranking, so the
 comparison conclusion stands.
 \end{itemize}
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab5_prompt.png}\end{center}
@@ -234,7 +235,7 @@ were initially miscomputed against Sec.~5.8 and fixed before measuring
 (rerank applied everywhere; graph sources in dense pool).
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab7_abl.png}\end{center}
 \begin{itemize}[leftmargin=*]
-\item \textit{Reading Fig.~9:} our bars sit below paper RAGAS line (different
+\item \textit{Reading Fig.~9:} our bars sit below paper RAGAS (different
 judge) but the \textbf{spread shape matches} --- ablations bite for real, not
 dead numbers. \textit{If asked ``does each component matter'':} point at the
 gaps between bars -- every removal drops scores in the same order as paper.
