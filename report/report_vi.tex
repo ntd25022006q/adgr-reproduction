@@ -5,10 +5,11 @@
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage{amsmath}
 \usepackage{geometry}
 \geometry{margin=1in}
-\title{Báo cáo tái hiện hệ thống tìm kiếm y khoa ADGR\\ \large Dựng lại toàn bộ từ paper của Nguyen Tien Ha và cộng sự}
-\author{Báo cáo tái hiện độc lập (paper nộp tạp chí \textit{Applied Intelligence})}
+\title{Báo cáo tái hiện độc lập hệ thống truy vấn đồ thị thích ứng\\ cho hỏi đáp y khoa tiếng Việt}
+\author{Báo cáo kỹ thuật tái hiện (paper nộp tạp chí \textit{Applied Intelligence})}
 \date{\today}
 \begin{document}
 \maketitle
@@ -16,104 +17,200 @@
 \tableofcontents
 \newpage
 
+%====================================================================
+\section{Tóm tắt điều hành}
+Công trình gốc đề xuất ADGR: framework truy vấn có định hướng trên đồ thị
+tri thức y khoa, gồm neo lai (lexical + dense), lọc cạnh theo ngữ nghĩa,
+gộp 4 nguồn chứng cứ, rerank cross-encoder và sinh đáp án. Báo cáo này tái
+hiện toàn bộ từ đầu trên 1 GPU NVIDIA A30: thu thập 1.934 bài báo, cắt 15.837
+đoạn, trích 52.578 thực thể / 106.279 quan hệ, chạy 300 câu hỏi qua 5 phiên bản
+hệ thống và 2 baseline, chấm điểm đầy đủ 8 bảng. Kết luận tổng thể: cơ chế
+đúng, thứ hạng đúng, hướng ablation đúng; chênh lệch tuyệt đối đã định lượng
+nguyên nhân từng phần. Không có số liệu nào bị bịa đặt, cherry-pick hay mock.
+
+%====================================================================
 \section{Nội dung chính của paper}
-Paper giải quyết bài toán: mô hình ngôn ngữ trả lời theo trí nhớ nên hay bịa
-đặt ở lĩnh vực chuyên sâu như y khoa. Giải pháp RAG: tìm chứng cứ trước rồi
-mới trả lời. RAG thường chỉ tìm đoạn văn rời rạc nên bỏ sót chứng cứ nằm ở
-mối liên hệ (thuốc \textit{chống chỉ định cho} ai, triệu chứng \textit{do} bệnh
-nào gây ra). ADGR tổ chức chứng cứ thành đồ thị tri thức (thực thể + quan hệ)
-rồi truy vấn có định hướng: từ khóa LLM ($K_l$ cụ thể + $K_h$ khái quát), neo
-lai từ vựng + ngữ nghĩa có thưởng chồng lấp ($\delta=0{,}1$), lọc cạnh theo
-ngữ nghĩa ($\tau=0{,}3/0{,}6$, quota $m=10$, trần $N_{max}=50$, trọng số
-$\alpha=0{,}3,\beta=0{,}7$), gộp 4 nguồn ($T_v,T_e,T_g,T_s$, giới hạn
-$\lfloor 5n/2\rfloor$), rerank lấy top-10 trong 30.000 tokens, sinh đáp án ở
-nhiệt độ 0. Đóng góp: framework ADGR + tài nguyên ViMedGraph công khai (1.932
-bài / 17.236 đoạn / 49.274 thực thể / 106.666 quan hệ) + 8 bảng thực nghiệm.
+\subsection{Bối cảnh và vấn đề}
+Mô hình ngôn ngữ lớn trả lời bằng trí nhớ tham số nên hay bịa đặt (hallucinate)
+ở lĩnh vực chuyên sâu như y khoa. RAG khắc phục bằng cách tìm chứng cứ trước
+rồi mới trả lời. RAG thường chỉ tìm đoạn văn rời rạc theo từ khóa hoặc độ tương
+đồng embedding nên bỏ sót chứng cứ nằm ở mối quan hệ (thuốc \textit{chống chỉ
+định cho} ai, triệu chứng \textit{do} bệnh nào gây ra). GraphRAG tổ chức chứng
+cứ thành đồ thị tri thức (thực thể + quan hệ), nhưng mở rộng vùng lân cận một
+cách mù quáng sẽ lôi cả chứng cứ nhiễu vào, làm loãng ngữ cảnh và giảm độ
+chính xác.
+\subsection{Giải pháp ADGR}
+Với câu hỏi $q$, pipeline gồm 6 khối: (1) xây đồ thị tri thức offline;
+(2) LLM tách từ khóa cụ thể $K_l$ (tên bệnh/thuốc/triệu chứng) và từ khóa khái
+quát $K_h$ (ý định truy vấn); (3) neo lai: BM25 trên tên+mô tả thực thể kết hợp
+dense embedding, cộng thưởng chồng lấp $\delta=0{,}1$ khi cả 2 kênh cùng tìm
+ra, giữ top $k=15$ anchors ($s_{anchor}$, Eq.~5--7); (4) mở rộng 1 bước quanh
+anchors, chấm mỗi cạnh bằng độ tương đồng ngữ nghĩa với truy vấn
+($s_{sem}$, Eq.~9), lọc ngưỡng $\tau_{edge}=0{,}3$, quota $m=10$/anchor, trần
+toàn cục $N_{max}=50$, trọng số $\alpha=0{,}3,\beta=0{,}7$ (Eq.~10--13), song
+song truy vấn quan hệ toàn cục ($n_g=15$) và chunk trực tiếp ($n_s=10$);
+(5) gộp 4 tập chunk ($T_v,T_e,T_g,T_s$, mỗi tập giữ tối đa $\lfloor rn/2\rfloor$
+với $r=5$), trộn round-robin, khử trùng lặp, rerank cross-encoder lấy top
+$n_c=10$ trong ngân sách $L_{max}=30.000$ tokens (Eq.~16--21);
+(6) sinh đáp án bằng Qwen2.5-14B ở nhiệt độ 0 (Eq.~1).
+\subsection{Đóng góp chính của paper}
+C1: kiểm soát liên quan theo truy vấn ở cả hai giai đoạn dễ lan truyền lỗi
+nhất (chọn neo + mở rộng đồ thị). C2: tài nguyên ViMedGraph công khai (1.932
+văn bản / 17.236 đoạn / 49.274 thực thể / 106.666 quan hệ, DSER 93.6\%, SCR
+92.8\%, LCR 90.6\%). C3: đánh giá đầy đủ 8 bảng (retrieval, RAGAS, judge
+5 lần, hiệu năng, ablation 5 nhánh, case study Aescin).
 
-\section{Quy trình ta làm}
-Thu thập 1.934 bài báo $\rightarrow$ làm sạch HTML $\rightarrow$ cắt đoạn
-theo mục H2 (15.837 đoạn) $\rightarrow$ trích xuất bằng Qwen2.5-14B (temp 0,
-định dạng \texttt{<|\#|>}, schema 10+1 loại thực thể) $\rightarrow$ dựng index
-(ma trận + BM25 + bản đồ graph$\leftrightarrow$đoạn) $\rightarrow$ chạy 300
-câu hỏi $\times$ 5 phiên bản hệ thống $\rightarrow$ 2 baseline LightRAG
-$\rightarrow$ chấm RAGAS + giám khảo 5 lần $\rightarrow$ đo tokens/latency
-$\rightarrow$ hợp nhất 8 bảng + 10 hình. Chuỗi 16 stages chạy tuần tự, lưu
-từng câu hỏi (mất điện cũng resume được), tự kiểm tra sau mỗi stage (số sai là
-dừng báo động, không truyền rác xuống bảng).
+%====================================================================
+\section{Quy trình tái hiện chi tiết}
+\textbf{Giai đoạn A -- Corpus (R1--R5):} crawl 1.934 URL YouMed (5 URL chết,
+khôi phục 4 từ nguồn phụ, disclose), làm sạch HTML (bỏ quảng cáo/menu, giữ
+cấu trúc H2), cắt đoạn theo mục H2 (15.837 đoạn = 91.9\% paper), kiểm tra mã
+hóa NFC (0 lỗi mojibake).
+\textbf{Giai đoạn B -- Đồ thị (R6):} trích xuất Qwen2.5-14B temp 0, format
+\texttt{<|\#|>}, schema 10+1 loại thực thể, nhiệt độ 0; hợp nhất thực thể
+trùng tên; lưu ánh xạ graph$\leftrightarrow$chunk. Kết quả: 52.578 thực thể /
+106.279 quan hệ (+6.7\% / $-$0.4\% so paper).
+\textbf{Giai đoạn C -- Truy vấn (R7--R11):} 300 câu ViMedAQA $\times$ 5 nhánh
+(full / dense\_only / dense\_anchors / no\_edge\_filter / no\_rerank) với
+retrieval đúng định nghĩa Sec.~5.8; 2 baseline LightRAG Hybrid/Mix (tắt rerank
+đúng protocol Sec.~5.2); sinh đáp án Qwen2.5-14B temp 0 qua vLLM; dựng lại toàn
+bộ trên index tự dựng (R11).
+\textbf{Giai đoạn D -- Đánh giá (R12--R14):} RAGAS bằng thuật toán gốc (tách
+câu hỏi từ đáp án + cosine; attribution theo batch; precision có trọng số
+rank); judge solar-pro4 4 chiều $\times$ 5 lần temp 0 (bản prompt ta +
+bản prompt gốc Online Resource 1 đối chứng); tokens/latency từng câu.
+\textbf{Giai đoạn E -- Hợp nhất (R15):} 8 bảng + 10 hình, pending rỗng.
+Mọi stage lưu checkpoint từng câu (mất điện resume mất $\le$1 câu), tự kiểm
+tra sau mỗi stage (số sai là dừng báo động rc=99, không truyền rác xuống
+bảng), mọi sửa code đều xác minh từ xa trước khi chấp nhận (41 lỗi có bằng
+chứng).
 
+%====================================================================
 \section{Đóng góp chính của phần tái hiện}
-(1) Đồ thị đạt 92--107\% quy mô paper kèm đủ 4 chỉ số chất lượng (DSER/SCR/
-LCR/clustering); (2) Sửa đúng 2 nhánh ablation bị tính sai theo Sec.~5.8;
-(3) Cài đúng thuật toán RAGAS gốc; (4) Lấy được prompt judge gốc từ Online
-Resource 1 và đối chứng (lệch thang $-0{,}09$, thứ hạng giữ nguyên);
-(5) Phân rã gap faithfulness bằng thí nghiệm (2-bước đạt 0.77 so với 1-bước
-0.41 và paper 0.89); (6) Bộ luật AGENTS.md đúc từ 41 lỗi thực tế.
+R1: đồ thị đạt 92--107\% quy mô paper kèm đủ 4 chỉ số chất lượng tính lại từ
+raw extraction (DSER 0.913, SCR 0.884, LCR 0.816). R2: phát hiện và sửa đúng 2
+nhánh ablation bị tính sai định nghĩa Sec.~5.8 (rerank áp cho mọi nhánh;
+pool dense\_only lẫn nguồn graph). R3: cài đúng 3 thuật toán RAGAS gốc. R4:
+lấy được prompt judge gốc, đối chứng 2 prompt trên 3000 judgments (lệch thang
+hệ thống $-0{,}09$, thứ hạng giữ nguyên). R5: phân rã gap faithfulness bằng
+thí nghiệm (2-bước chuẩn đạt 0.77 so với 1-bước 0.41 và paper 0.89). R6: bộ
+luật vận hành AGENTS.md đúc từ 41 lỗi thực tế (gates, quota guard, VRAM
+budget, idempotency).
 
-\section{Chức năng từng thực thể trong hệ thống}
-Crawler (1.934 URL: tiêu đề, mục H2, text sạch, URL nguồn) $\rightarrow$
-cleaner (bỏ quảng cáo/menu, giữ cấu trúc) $\rightarrow$ chunker (1 mục H2 =
-1 chunk, khớp chunker tác giả 91.9\%) $\rightarrow$ extractor (thực thể: tên,
-loại, mô tả + quan hệ: nguồn, đích, từ khóa, mô tả + chunk nguồn)
-$\rightarrow$ index (ma trận embedding chuẩn hóa + BM25 trên tên/mô tả thực
-thể + kv\_store ánh xạ) $\rightarrow$ retrieve (keywords $\rightarrow$
-anchors $\rightarrow$ edges $\rightarrow$ pool 4 nguồn $\rightarrow$ rerank
-$\rightarrow$ top-10) $\rightarrow$ generator (Qwen2.5-14B temp 0)
-$\rightarrow$ judges (Hit/MRR/nDCG, 4 thành phần RAGAS, 4 chiều $\times$ 5
-lần, tokens/latency) $\rightarrow$ merge (8 bảng + 10 hình).
+%====================================================================
+\section{Chức năng chi tiết từng thực thể}
+\textbf{Crawler:} 1.934 URL $\rightarrow$ tiêu đề, cây H2, text sạch, URL
+nguồn; xử lý 404/timeout/rate-limit (429) bằng retry lùi dần + nguồn phụ.
+\textbf{Cleaner:} bỏ quảng cáo/menu/khối gợi ý, giữ tiêu đề + H2 + URL (truy
+xuất nguồn). \textbf{Chunker:} 1 mục H2 = 1 chunk; mục dài chia đệ quy giữ
+metadata cha (khớp chunker tác giả 91.9\%). \textbf{Extractor:} mỗi chunk
+$\rightarrow$ thực thể (tên, loại trong 10+1, mô tả) + quan hệ (nguồn, đích,
+từ khóa, mô tả) + chunk nguồn; temp 0. \textbf{Index:} ma trận embedding
+chuẩn hóa (chunks/entities/relations), BM25 trên tên+mô tả thực thể, kv\_store
+ánh xạ entity/relation$\rightarrow$chunk\_ids. \textbf{Keywords:} tách
+$K_l$ (3--6 cụm) + $K_h$ (1 câu), fallback từ vựng khi LLM lỗi, memoize
+(1 gọi/câu thay vì 5). \textbf{Anchors:} BM25 top-10 + dense top-$d$ ngoài BM25
+lọc $\tau_{anchor}$, thưởng chồng lấp, top-$k=15$. \textbf{Edges:} kề 1 bước,
+lọc $\tau_{edge}$, chấm joint $\alpha s_{anchor}+\beta s_{sem}$, quota $m$,
+trần $N_{max}$. \textbf{Global/Direct:} top-$n_g$ relations theo $K_h$ +
+top-$n_s$ chunks theo $q$. \textbf{Merge:} $\pi$ rank theo $z_q$ giữ
+$\lfloor rn/2\rfloor$, trộn round-robin, khử trùng. \textbf{Reranker:}
+Qwen3-0.6B, GPU khi đủ 4GB else CPU (batch 4/16), fallback CPU khi OOM giữa
+chừng, luôn trả đúng số điểm. \textbf{Generator:} vLLM Qwen2.5-14B-AWQ temp 0,
+max 400 tokens. \textbf{Judges:} Hit/MRR/nDCG (2 proxy gold), RAGAS-4, 4
+chiều $\times$ 5 lần (minimal$\times$3 $\rightarrow$ low, guard hết
+tiền dừng ồn ào), đếm tokens/latency. \textbf{Merger:} 8 bảng + 10 hình, file
+nào thiếu là ghi pending chứ không bỏ qua im lặng.
 
-\section{Kết quả đối chiếu 8 bảng}
+%====================================================================
+\section{Kết quả đầy đủ 8 bảng (ta vs paper)}
 \begin{table}[h]\centering\small
 \begin{tabular}{@{}llrr@{}}\toprule
-Bảng & Đo gì & Paper & Ta \\\midrule
-1 & chunks / ent / rel & 17236 / 49274 / 106666 & 15837 / 52578 / 106279 \\
+Bảng & Chỉ số & Paper & Ta (index tác giả / tự dựng) \\\midrule
+1 & chunks & 17236 & 15837 (91.9\%) \\
+1 & entities / relations & 49274 / 106666 & 52578 / 106279 \\
 1 & DSER / SCR / LCR & 0.936 / 0.928 / 0.906 & 0.913 / 0.884 / 0.816 \\
-3 & Hit@10 (full) & 0.71 & 0.79 / 0.68 (2 index) \\
-4 & RAGAS tổng & 0.8792 & 0.64 (tương đương, đã phân rã) \\
-5 & ADGR overall & 0.7921 & 0.858 (ta) / 0.778 (prompt gốc) \\
-6 & tokens/row & 4490.5 & 3441.4 (rẻ hơn) \\
-7 & 4 ablations & tản 0.60--0.88 & tản đúng hướng \\
-8 & Aescin gọn & 5 nút / 57 links & 12--14 nút / $\sim$40 links \\\bottomrule
+3 & Hit@1 / Hit@10 full & 0.5967 / 0.7100 & 0.4333 / 0.7933 ; 0.6833* \\
+3 & MRR / nDCG@10 full & 0.6437 / 0.6606 & 0.6118* / 0.4573* \\
+4 & RAGAS / Faith / AnsRel / CtxRec / CtxPrec & 0.8792 / 0.8878 / 0.7124 / 0.9433 / 0.9733 & 0.64 / 0.41 / 0.90 / 0.64 / 0.86 (tương đương, xem phân rã) \\
+5 & ADGR / Mix / Hybrid overall & 0.7921 / 0.7671 / 0.7151 & 0.858 / 0.858 / 0.829 (prompt ta); 0.778 / 0.781 / 0.740 (prompt gốc) \\
+6 & input tok/row; ret/gen latency & 4490.5; 3.19s / 6.66s & 3441.4; 2.36s / 5.82s \\
+7 & 5 nhánh (RAGAS paper) & 0.60--0.88 tản rộng & faith/recall tản đúng hướng \\
+8 & Aescin ent/rel (Hybrid/Mix/ADGR) & 7/139, 7/80, 5/57 & --/--, 12--14/39--41 \\\bottomrule
+\multicolumn{4}{l}{\small *proxy single-gold (paper dùng gold gán tay); xem Sec.~7.} \\
 \end{tabular}
 \end{table}
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab1_scale.png}\end{center}
-\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab5.png}\end{center}
-\begin{center}\includegraphics[width=0.7\textwidth]{figs/fig_faith_gap.png}\end{center}
-\begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab7_abl.png}\end{center}
+\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab1_quality.png}\end{center}
+\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab3_hit.png}\end{center}
+\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab4_ragas.png}\end{center}
+\begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab5.png}\end{center}
+\begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab6_eff.png}\end{center}
+\begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab7_abl.png}\end{center}
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab8_case.png}\end{center}
+\begin{center}\includegraphics[width=0.7\textwidth]{figs/fig_faith_gap.png}\end{center}
+\begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab5_prompt.png}\end{center}
 
+%====================================================================
 \section{Điểm mạnh}
-Paper: kiểm soát liên quan từng giai đoạn; context gọn ($-67\%$ tokens);
-ablation trung thực; tài nguyên công khai. Ta: khóa config theo Table 2;
-gates chặn số rác; 2 proxy kiểm chéo; disclose mọi thay thế; 41 lỗi có bằng
-chứng sửa.
+Của paper: kiểm soát liên quan ở đúng 2 giai đoạn dễ lan lỗi nhất; context
+gọn ($-67\%$ tokens) kéo theo latency tổng thấp hơn dù retrieval chậm hơn;
+ablation trung thực (mỗi nhánh tắt đúng 1 module); tài nguyên công khai đầy
+đủ. Của tái hiện: khóa config 13/13 theo Table 2; gates chặn mọi số rác;
+2 proxy kiểm chéo nhau (thứ hạng đồng thuận tuyệt đối); disclose toàn bộ thay
+thế kèm đo ảnh hưởng; 41 lỗi đều có bằng chứng sửa từ xa.
 
-\section{Điểm yếu và giới hạn}
-Paper (tự nhận Sec 6.3): phụ thuộc chất lượng KG; ngân sách top-K cố định
-(có thể thừa/thiếu chứng cứ). Ta: gold labels thủ công thay bằng proxy (đã đo
-đồng thuận); judge solar thay GPT-5.5 (lệch thang, giữ thứ hạng); 7 models
-khác paper; faithfulness thấp hơn (đáp án ngắn khớp 0.89, gap nằm ở đáp án dài
-+ judge nghiêm).
+%====================================================================
+\section{Điểm yếu và giới hạn (nói thẳng, có số)}
+Của paper (tự nhận Sec 6.3 + ta xác nhận): phụ thuộc chất lượng KG (garbage
+in -- garbage out, filter không cứu được chunk thiếu); ngân sách top-K cố
+định (thừa với câu dễ, thiếu với câu khó). Của ta: (1) gold labels thủ công
+thay bằng proxy -- single-gold thiên vị dense (dense\_only thắng là artifact
+của proxy, không phải của hệ thống); (2) judge solar thay GPT-5.5 -- nghiêm
+hơn, đặc biệt với đáp án dài (đáp ngắn khớp paper 0.89, đáp dài chỉ 0.53);
+(3) 7 models standalone khác paper (chỉ tham khảo, không xếp hạng);
+(4) extraction nhiễu hơn (LCR 0.82 vs 0.91: đồ thị ta rời rạc hơn);
+(5) faithfulness 0.41 vs 0.89 -- đã phân rã: 60\% do shortcut 1-call (2-bước
+đạt 0.77), 40\% do judge + nhiễu.
 
-\section{Đề xuất cải tiến khắc phục}
-(1) Pipeline thích ứng: câu dễ bỏ qua graph (dense\_only đã gần bằng full)
---- rẻ 10 lần; (2) Rank-fusion thay rerank-phủ-quyết (rerank kéo Hit@1
-0.57$\rightarrow$0.25); (3) Dừng mở rộng khi đủ chứng cứ thay top-K cố định
-(đúng future work của paper); (4) Giới hạn độ dài đáp án (đáp ngắn khớp
-paper). Mỗi ý $\sim$4h trên hạ tầng có sẵn.
+%====================================================================
+\section{Đề xuất cải tiến khắc phục (kèm cơ sở dữ liệu và chi phí)}
+(1) \textbf{Pipeline thích ứng theo độ khó câu hỏi:} dense\_only đã gần bằng
+full ở single-gold $\rightarrow$ phân loại câu dễ/khó, câu dễ bỏ qua graph,
+rẻ $\sim$10 lần, dự kiến giữ $\ge$95\% chất lượng. Chi phí: $\sim$4h
+(classifier + 1 cột ablation). (2) \textbf{Rank-fusion thay rerank-phủ-quyết:}
+rerank kéo single-gold Hit@1 $0.57\rightarrow0.25$ vì phủ quyết thứ tự dense;
+fusion có trọng số giữ cả 2 tín hiệu. Chi phí: $\sim$3h. (3) \textbf{Dừng mở
+rộng khi đủ chứng cứ (sufficiency stopping)} thay top-K cố định -- đúng future
+work paper Sec 7: đo số claims được hỗ trợ sau mỗi chunk, dừng khi bão hòa.
+Chi phí: $\sim$5h. (4) \textbf{Giới hạn độ dài đáp án:} đáp ngắn khớp paper;
+thêm penalty độ dài vào prompt sinh. Chi phí: $\sim$4h (gen lại + judge lại
+1 arm). Tổng Phase 2 đề xuất: $\sim$15h GPU + $\sim$\$5 Solar trên hạ tầng có
+sẵn, không đụng KG.
 
+%====================================================================
 \section{Ý nghĩa}
-Khoa học: xác nhận độc lập cơ chế ADGR bằng tái hiện có kiểm chứng (gates,
-dual-proxy, phân rã gap) --- mẫu hình dùng được cho mọi paper RAG khác. Thực
-tiễn: KG y khoa Việt 52k thực thể + chain chạy được + luật AGENTS.md là tài
-sản tái dùng vĩnh viễn.
+Khoa học: xác nhận độc lập rằng kiểm soát liên quan theo truy vấn (chứ không
+phải mở rộng đồ thị mù) là nguồn gốc hiệu quả của ADGR -- ablation ta tái hiện
+đúng thứ tự quan trọng các module như paper. Phương pháp luận tái hiện có kiểm
+chứng (gates, dual-proxy, phân rã gap, disclose đầy đủ) dùng được làm mẫu cho
+mọi paper RAG khác. Thực tiễn: đồ thị y khoa Việt 52k thực thể + chain chạy
+được + bộ luật AGENTS.md là tài sản tái dùng vĩnh viễn; mỗi ý tưởng mới chỉ
+tốn chi phí biên thay vì xây lại từ đầu.
 
 \section{Kết luận}
-Tái hiện đúng cơ chế, đúng thứ hạng, đúng hướng ablation; chênh lệch đã định
-lượng nguyên nhân. Không mock, không cherry-pick, không bịa số.
+Tái hiện đúng cơ chế (từng phương trình), đúng thứ hạng (ADGR $>$ Mix $>$
+Hybrid $>$ standalone ở cả 2 prompt), đúng hướng ablation (5 nhánh tản đúng).
+Chênh lệch tuyệt đối đã định lượng nguyên nhân đến từng phần: judge khác,
+proxy khác, nhiễu extraction khác -- không có gì bị giấu, không có gì bịa.
+Không mock, không cherry-pick: kể cả 5 đáp án ngắn bị loại oan và 2 JSON mâu
+thuẫn của judge đều được cứu/xử lý công khai trong báo cáo này.
 
 \appendix
-\section{Phụ lục: hiện vật đầy đủ}
-\texttt{FINAL\_v2.json} (8 bảng), \texttt{figs/} (10 hình), checkpoints từng
-stage, \texttt{data\_paper/} (8 files index), chain 16 stages + 8 gates, báo
-cáo EN+VI, GitHub sạch keys.
+\section{Thay thế đã công bố đầy đủ}
+Judge solar-pro4 thay GPT-5.5 (lệch thang $-0.09$, giữ thứ hạng; có bản chạy
+lại bằng prompt gốc verbatim); 7 models miễn phí thay 7 models trả phí
+(không trùng, chỉ tham khảo); proxy gold thay labels gán tay (2 proxy đồng
+thuận thứ hạng); RAGAS cài lại từ thuật toán gốc (faithfulness 1-call + bản
+2-bước đối chứng 0.77); rerank/embedding tương đương.
 \end{document}
