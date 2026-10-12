@@ -1,0 +1,51 @@
+{
+  "qwen-local": {
+    "n": 296,
+    "n_invalid": 4,
+    "mean": 0.6219,
+    "sd": 0.2234,
+    "sem": 0.013
+  },
+  "ultra": {
+    "n": 285,
+    "n_invalid": 15,
+    "mean": 0.6689,
+    "sd": 0.2443,
+    "sem": 0.0145
+  },
+  "super": {
+    "n": 288,
+    "n_invalid": 7,
+    "mean": 0.6101,
+    "sd": 0.2484,
+    "sem": 0.0146
+  },
+  "glm": {
+    "n": 277,
+    "n_invalid": 20,
+    "mean": 0.6774,
+    "sd": 0.2471,
+    "sem": 0.0148
+  },
+  "cf-llama": {
+    "n": 294,
+    "n_invalid": 6,
+    "mean": 0.5652,
+    "sd": 0.2386,
+    "sem": 0.0139
+  },
+  "qwen2.5-14b": {
+    "n": 0,
+    "n_invalid": 0,
+    "mean": null,
+    "sd": null,
+    "sem": null
+  },
+  "qwen3-14b": {
+    "n": 0,
+    "n_invalid": 0,
+    "mean": null,
+    "sd": null,
+    "sem": null
+  }
+}

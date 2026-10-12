@@ -1,0 +1,14 @@
+{
+ "n_docs": 1930,
+ "n_chunks": 15837,
+ "chunks_per_doc": 8.206,
+ "paper_chunks_per_doc": 8.92,
+ "paper_chunks": 17236,
+ "paper_docs": 1932,
+ "pct_of_paper_chunks": 91.9,
+ "mean_tokens": 357.2,
+ "median_tokens": 255,
+ "max_tokens": 1980,
+ "n_docs_zero_chunks": 0,
+ "note": "author semantic_markdown_chunker: H2 split, 1950-tok guard-rail, 0 overlap"
+}

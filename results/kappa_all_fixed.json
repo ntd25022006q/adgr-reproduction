@@ -1,0 +1,6 @@
+{
+ "note": "Fleiss bug fixed (missing factor 2 in Po)",
+ "kappa6_binary": 0.1907,
+ "kappa6_3bin": 0.1435,
+ "n": 270
+}

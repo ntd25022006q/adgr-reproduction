@@ -1,0 +1,21 @@
+# Large / regenerable / secret — never commit
+data/
+data_paper/
+data_baseline/
+data_ours/
+models/
+*.log
+*.bak
+*pre_*_bak*
+__pycache__/
+*.pyc
+*.lock
+runs_backup_*/
+vllm*.log
+chain_full.log
+*.tmp
+.DS_Store
+# API keys must NEVER be committed (use ~/.config/adgr/ with 600 perms)
+*key*.txt
+*token*.txt
+.env

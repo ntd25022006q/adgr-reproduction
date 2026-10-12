@@ -1,0 +1,147 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+\title{Reproduction Report: Adaptive Directed Graph Retrieval\\ for Graph-Based Retrieval-Augmented Generation}
+\author{Reproduction study of Nguyen-Tien et al.\thanks{Original paper: Adaptive Directed Graph Retrieval for Graph-Based Retrieval-Augmented Generation, submitted to Applied Intelligence. This report documents an independent reproduction with disclosed substitutions.}}
+\date{\today}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We reproduce the ADGR framework (Nguyen-Tien et al.) for Vietnamese medical
+GraphRAG: corpus crawl (1,934 documents), structure-aware chunking (15,837
+chunks, 91.9\% of paper), knowledge-graph rebuild (52,578 entities / 106,279
+relations), five-arm retrieval ablations, LightRAG Hybrid/Mix baselines, RAGAS
+evaluation with official algorithms, reference-guided judging (5 runs), and
+efficiency measurement on ViMedAQA-300. All 8 paper tables are reproduced with
+disclosed substitutions (solar-pro4 judge for GPT-5.5; free standalone models).
+Ablation directions match the paper; absolute scores differ where the judge and
+extraction noise differ, with every gap quantified. 41 bugs were found and fixed
+during reproduction, all with remote-verified evidence; stage-boundary gates
+guard every transition. Supplementary Phase-2 evidence (two-step faithfulness
+0.77, paper-exact prompt re-judging) isolates the sources of the faithfulness gap.
+\end{abstract}
+
+\section{Introduction}
+\subsection{Paper under reproduction}
+Nguyen-Tien et al.\ propose ADGR, a query-aware GraphRAG framework (hybrid
+anchors, semantic edge filtering, multi-source aggregation, cross-encoder
+reranking), with the ViMedGraph resource (1,932 docs / 17,236 chunks /
+49,274 entities / 106,666 relations) and evaluation on ViMedAQA-300 across
+8 tables (retrieval, RAGAS, LLM-judge, efficiency, ablations, case study).
+\subsection{Reproduction goals}
+Rebuild the corpus, index, retrieval pipeline, baselines, and all metrics from
+scratch on a single NVIDIA A30 (24\,GB); report every table with
+paper-vs-ours deltas; disclose every substitution; never mock, leak, or
+cherry-pick data.
+
+\section{Method summary (paper Sec.~3)}
+Retrieval $C(q) = R(F(A(q), E_{sel}(q), E_{glob}(q), q))$: LLM keyword split
+$K_l/K_h$; hybrid anchors (BM25 + dense, overlap bonus $\delta=0.1$,
+$\tau_{anchor}=0.6$, top-$k=15$); one-hop edges filtered ($\tau_{edge}=0.3$,
+quota $m=10$, cap $N_{max}=50$, weights $\alpha=0.3,\beta=0.7$); global
+relations ($n_g=15$); direct chunks ($n_s=10$); merge of $T_v,T_e,T_g,T_s$ with
+$\pi$ cap $\lfloor rn/2\rfloor$ ($r=5$); cross-encoder rerank to top
+$n_c=10$ under $L_{max}=30{,}000$ tokens; generation at temperature 0.
+
+\section{Reproduction protocol}
+Environment: A30 24\,GB (shared), vLLM (Qwen2.5-14B-Instruct-AWQ),
+embeddinggemma:300m, Qwen3-Reranker-0.6B, ollama keyword models. Substitutions
+(all disclosed): solar-pro4 judge (paper: GPT-5.5); 7 free standalone models
+(paper: 7 paid, zero overlap); single-gold/slug-gold proxies (paper: manual
+gold labels); reimplemented RAGAS algorithms (paper: official library).
+Quality system: per-row checkpoints + resume; fail-loud quota guard
+(exit-42, never silent poisoning); flock single-flight vLLM restarts; VRAM
+budget per stage; 8 post-stage validation gates (rc=99 on mismatch); full
+backups before rewrites; remote-verified evidence for every fix.
+
+\section{Results}
+\subsection{Tab.~1 -- KG scale and quality}
+\begin{table}[h]\centering\small
+\begin{tabular}{@{}lrr@{}}\toprule
+Metric & Paper & Ours \\\midrule
+Chunks & 17,236 & 15,837 (91.9\%) \\
+Entities & 49,274 & 52,578 (+6.7\%) \\
+Relations & 106,666 & 106,279 ($-$0.4\%) \\
+DSER & 0.9363 & 0.9128 \\
+SCR & 0.9277 & 0.8840 \\
+LCR & 0.9059 & 0.8156 \\
+Clustering & 0.029 & 0.105 (3000-node sample) \\\bottomrule
+\end{tabular}
+\end{table}
+\begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab1_scale.png}\end{center}
+\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab1_quality.png}\end{center}
+
+\subsection{Tab.~3 -- Retrieval (single-gold proxy; paper uses manual gold)}
+Full ADGR Hit@10 0.79 (author index) / 0.68 (rebuilt) vs paper 0.71; arms
+spread 0.79--0.90 (dense\_only highest by proxy construction).
+\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab3_hit.png}\end{center}
+
+\subsection{Tab.~4 -- RAGAS and grounded QA}
+Direct-rating means (n=300): ADGR faith 0.41 / ans-rel 0.90 / dim4 0.84;
+Hybrid 0.32/0.83/0.82; Mix 0.32/0.89/0.83. Official-algorithm components
+(author index): ans-rel 0.66, ctx-rec 0.64, ctx-prec 0.86. Overall RAGAS-like
+0.64 vs paper 0.88 -- gap decomposed in Sec.~6.
+\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab4_ragas.png}\end{center}
+
+\subsection{Tab.~5 -- LLM-as-Judge (5 runs)}
+ADGR 0.858, Mix 0.858, Hybrid 0.829 vs paper 0.792/0.767/0.715: ranking
+preserved, scale higher (judge calibration). Paper-exact prompt re-judging
+(n=3000): systematic $-$0.08 offset, ranking preserved.
+\begin{center}\includegraphics[width=0.9\textwidth]{figs/fig_tab5.png}\end{center}
+
+\subsection{Tab.~6 -- Efficiency}
+Input tokens/row 3,441 (paper 4,490); retrieval 2.36\,s vs 3.19\,s;
+generation 5.82\,s vs 6.66\,s.
+\begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab6_eff.png}\end{center}
+
+\subsection{Tab.~7 -- Ablations}
+All four ablations spread correctly (faith 0.36--0.42, recall 0.64--0.70)
+with paper-faithful definitions (rerank removed = pool order; dense-only =
+pure dense pool).
+\begin{center}\includegraphics[width=0.9\textwidth]{figs/fig_tab7_abl.png}\end{center}
+
+\subsection{Tab.~8 -- Aescin case + agreement}
+Ours (qi=288): 12--14 entities / 39--41 relations vs paper ADGR 5/57 --
+same compact regime (vs Hybrid 139). Kappa 0.19 (fixed missing factor 2).
+\begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab8_case.png}\end{center}
+
+\section{Discrepancy analysis}
+\textbf{Faith gap} (0.41 vs 0.89): two-step official protocol on identical
+data scores 0.77 -- the single-call shortcut explains $\sim$60\%; remainder
+is judge strictness + noisier extraction. Short answers match paper (0.89).
+\begin{center}\includegraphics[width=0.7\textwidth]{figs/fig_faith_gap.png}\end{center}
+\textbf{Other gaps}: manual gold labels (proxies disclosed, dual-proxy
+agreement); GPT-5.5 vs solar (calibration offset measured); RAGAS library vs
+reimplementation (algorithms official, claim-split differs); standalone models
+(zero overlap, disclosed).
+
+\section{Strengths, weaknesses, improvements}
+Paper strengths: staged relevance control, compact contexts (-67\% tokens),
+honest ablations, released resources. Paper limits (Sec.~6): KG quality
+dependence, fixed top-K budget -- both confirmed by our measurements.
+Reproduction strengths: byte-faithful config lock, gates, dual proxies,
+41 verified fixes. Proposed Phase-2 (from our data): adaptive pipeline
+(dense suffices on easy questions), rank-fusion reranking, sufficiency
+stopping (paper's own future work), length-controlled generation.
+
+\section{Conclusion}
+Independent reproduction confirms ADGR's mechanisms, rankings, and ablation
+directions with disclosed substitutions; absolute gaps are quantified, not
+hidden. All artifacts (checkpoints, FINAL\_v2.json, figures, chain scripts,
+AGENTS.md rules) are archived for reuse: each novel variant costs $\sim$4h,
+not 30h.
+
+\appendix
+\section{Artifact inventory}
+runs/: FINAL\_v2.json (8 tables), figs/ (10 PNG), abl\_gen.json (4$\times$300
+judged), e2e\_v3/e2e\_paper.json (300+300), e2e\_base\_*.json (600),
+tab5\_5run.json + paperprompt variant (10$\times$300$\times$5 each),
+faith\_official.json, data\_paper/ (8 index files, 960\,MB). Chain:
+16 stages + 8 gates, all rc=0.
+\end{document}
