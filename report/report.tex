@@ -39,10 +39,10 @@ chunks (91.9\% of paper; min 126, median 799, mean 1,079 chars). Hard part: no
 author chunker code, so the H2 rule was inferred from the paper text and
 validated by count.
 \item \textbf{Graph:} Qwen2.5-14B temp 0 $\rightarrow$ 52,578 entities /
-106,279 relations (paper: 49,274 / 106,666); 10.6 entities/chunk average. Hard
-part: 15,837 chunks through a 14B model takes tens of GPU hours with occasional
-malformed outputs; per-chunk checkpoints plus defensive parsing made it
-resumable.
+106,279 relations (paper: 49,274 / 106,666); 3.3 entities/chunk average (max 171
+in a terminology-dense chunk). Hard part: 15,837 chunks through a 14B model
+takes tens of GPU hours with occasional malformed outputs; per-chunk
+checkpoints plus defensive parsing made it resumable.
 \item \textbf{Retrieval:} 300 questions $\times$ 5 pipeline variants (full +
 4 ablations, each disabling exactly one module per Sec.~5.8) + 2 LightRAG
 baselines with rerank off per Sec.~5.2. Hard part: one GPU shared with vLLM +
@@ -68,9 +68,41 @@ recomputed from raw extraction (DSER 0.913, SCR 0.884, LCR 0.816).
 applied to the ``no-rerank'' arm; graph sources merged into the dense pool).
 (3) Official RAGAS algorithms reimplemented. (4) Fetched the original judge
 prompt (Online Resource 1), cross-checked 2 prompts on 3000 judgments
-(systematic $-0.09$ scale shift, rankings kept). (5) Decomposed the
+(systematic $\sim$0.08 scale shift, ADGR 0.858$\rightarrow$0.778, rankings kept). (5) Decomposed the
 faithfulness gap by experiment (two-step 0.77 vs one-step 0.41 vs paper
 0.89). (6) Operating rules distilled from 43 real failures.
+
+%====================================================================
+\section{Deviations from the paper, each with its reason}
+Every substitution below is fixed and disclosed; none is hidden in the numbers.
+\begin{itemize}[leftmargin=*]
+\item \textbf{Generator:} Qwen2.5-14B-Instruct-AWQ locally via vLLM, temp 0,
+max 400 tokens (no access to the paper's commercial model; a strong open
+model, temp 0 for determinism: identical inputs always yield identical answers).
+\item \textbf{Embedding:} \texttt{embeddinggemma:300m} (768-dim) instead of a
+commercial embedding (no API access).
+\item \textbf{Reranker:} Qwen3-Reranker-0.6B instead of a commercial
+cross-encoder (fits local VRAM, with per-row CPU fallback on mid-run OOM).
+\item \textbf{Judge:} solar-pro4 instead of GPT-5.5 (no GPT-5.5 API access;
+its strictness was measured via the original-prompt cross-check in Table 5).
+\item \textbf{Gold labels:} the authors' manual gold $\rightarrow$ two proxies:
+slug-gold (optimistic: correct = chunk from the same article) and single-gold
+(pessimistic: correct = the single most similar chunk). Without hand-made
+labels, paper numbers are never impersonated; both proxies are reported.
+\item \textbf{Standalone:} the paper's 7 paid models $\rightarrow$ 7 free models,
+zero overlap (reference points only, never ranked against the paper).
+\item \textbf{Chunker:} H2 rule reverse-engineered (no code released; 91.9\%
+match by count; measurable consequences: 3.3 entities/chunk and lower LCR).
+\item \textbf{RAGAS:} reimplemented from the published formulas instead of the
+official library (to share the solar judge and control cost; run on 295--300
+samples with cross-checked formulas).
+\item \textbf{One-step faithfulness} instead of the standard two-step (far
+cheaper; impact measured on identical data: 0.41 vs 0.77 --- both reported,
+see Figure 5).
+\item \textbf{Own judging prompt} plus a cross-check with the original prompt
+(Online Resource 1) on 3000 judgments (original prompt scores $\sim$0.08 lower
+but keeps all rankings --- see Figure 7).
+\end{itemize}
 
 %====================================================================
 \section{Function of every entity in detail}
@@ -85,7 +117,7 @@ whole corpus (Vietnamese diacritics intact).
 parent metadata (91.9\% author-chunker match).
 \item \textbf{Extractor:} per chunk $\rightarrow$ entities (name, 10+1 type,
 description) + relations (source, target, keywords, description) + source
-chunk id, temp 0, delimiter format. 10.6 entities/chunk on average (max 171
+chunk id, temp 0, delimiter format. 3.3 entities/chunk on average (max 171
 in a terminology-dense chunk).
 \item \textbf{Index:} normalized matrices (768-dim, chunks/entities/
 relations), BM25 over entity names and descriptions, two-way
@@ -135,7 +167,7 @@ Table & Metric & Paper & Ours (author / rebuilt index) \\\midrule
 \subsection{Table 1 -- Graph scale and quality, cell by cell}
 Chunks short 8\% (5 dead links + coarser merging of small sections -- both
 measured and listed). Entities +6.7\%: coarser chunks pack more entities each
-(10.6/chunk); a direct consequence of the chunker choice, not better
+(3.3/chunk); a direct consequence of the chunker choice, not better
 extraction. Relations $-$0.4\%: near-identical, showing equivalent relation
 extraction. DSER/SCR above 0.88 (over 88\% schema-conformant). LCR 0.82 vs
 0.91: 18\% of entities sit on disconnected islands (paper: 9\%) -- recomputed
@@ -153,6 +185,7 @@ relations), LCR (\% in giant component). All above 0.81, within 2--9pp.
 \textit{Deepest gap:} LCR $-$9pp, traced to coarser chunking (long chunks span
 disjoint topics whose entities never link). Retrieval still works (Table 3),
 so the connected core suffices -- the islands are mostly rare entities.
+Clustering 0.11 vs 0.03: tighter local cliques, same coarse-chunking cause.
 
 \subsection{Table 3 -- Retrieval coverage, with the odd-looking arm order explained}
 Hit@10 full: 0.79 / 0.68 vs paper 0.71 -- same range on proxies; the 0.11 gap
@@ -177,7 +210,7 @@ Faithfulness 0.41 vs 0.89. Three measured layers, no guessing:
 \textbf{Layer 1 (is the pipeline broken?):} our SHORT answers match paper
 (0.89) -- pipeline intact, gap lives in long answers (more claims = more
 chances to fail). \textbf{Layer 2 (is our scoring wrong?):} proper two-step
-scoring on identical data reaches 0.77 -- $\sim$60\% of the gap is our
+scoring on identical data reaches 0.77 -- $\sim$75\% of the gap is our
 one-step judging shortcut. \textbf{Layer 3 (what remains?):} stricter judge
 (solar vs GPT-5.5) plus noisier data (beyond reach: no GPT-5.5 access --
 stated as a limit, not hand-waved). Relevancy 0.90, dim4 0.84 high. Precision
@@ -200,7 +233,7 @@ pretty numbers.
 \subsection{Table 5 -- Five-run judging, both prompts}
 ADGR 0.858 vs paper 0.792; order ADGR $\approx$ Mix $>$ Hybrid $>$ standalone
 under BOTH prompts (paper-exact: 0.778/0.781/0.740). Paper prompt scores
-$\sim$0.09 lower (anti-verbosity guard hits long answers) -- measured on 3000
+$\sim$0.08 lower (anti-verbosity guard hits long answers) -- measured on 3000
 judgments across 10 methods. Mix $\approx$ ADGR (gap 0.0004): 20\%
 identical/near-identical answers (shared temp-0 generator + overlapping
 contexts) -- a property of every same-generator RAG comparison, paper
@@ -210,7 +243,7 @@ included (they share one generator too).
 across runs: short bars mean re-judging 5 more times would give nearly the
 same numbers). ADGR bar highest \textit{with the smallest bars} -- high AND
 stable, not one lucky judging. Paper's 0.79 line sits below. \textit{On ``why
-above paper'':} different judge calibration (measured $-0.09$ with the paper
+above paper'':} different judge calibration (measured $\sim$0.08 with the paper
 prompt), identical rankings, so comparison conclusions stand regardless of
 scale.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab5_prompt.png}\end{center}
@@ -247,7 +280,7 @@ but the \textbf{spread shape matches} -- same ordering, similar gaps.
 bars -- every removal drops scores in paper order. If bars were equal, that
 would mean dead architecture; they are not.
 
-\subsection{Table 8 -- Aescin story (tell it as a story with a beginning)}
+\subsection{Table 8 -- The Aescin case: compact yet accurate}
 Question: ``Who is Aescin contraindicated for?'' -- hard because it demands
 keeping the (drug -- contraindication -- target) triple intact. Paper: Hybrid
 drags 139 relations (including other drugs' contraindications like Bismuth,
@@ -258,10 +291,8 @@ compact style (finer entity splitting explains more nodes, fewer edges).
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab8_case.png}\end{center}
 \textit{Figure 10 in depth (log scale: each notch is 10x, mandatory because
 139 vs 5 spans 28x -- linear axis would crush ADGR bars invisible):} ADGR
-contexts an order of magnitude smaller than baselines. \textit{Presentation
-tip:} open the Q\&A with this figure -- the single most visual proof of
-``compact yet accurate'' in the whole report. If the teacher allows only one
-slide, this is the one.
+contexts an order of magnitude smaller than baselines. This is the most visual
+evidence of ``compact yet accurate'' in the whole report.
 
 %====================================================================
 \section{Verdict table: paper vs ours per metric (conclusion each)}
@@ -292,8 +323,9 @@ extraction), but zero differences without a measured cause.
 %====================================================================
 \section{Strengths, each with its number}
 Paper: relevance control at the two most error-propagating stages (removing
-anchors drops RAGAS most: 0.88$\rightarrow$0.72); compact contexts ($-67\%$
-tokens) cutting total latency (Tab.6: 11.1s$\rightarrow$9.8s); honest
+anchors drops RAGAS most: 0.88$\rightarrow$0.72); compact contexts ($-23\%$
+tokens) cutting retrieval-plus-generation latency (Tab.6:
+9.85s$\rightarrow$8.18s); honest
 ablations (one module off each, baselines not sabotaged); public resources
 (corpus + code + prompts -- this reproduction exists because of them).
 Ours: Table-2 config lock 13/13 (any single wrong number surfaces instantly
@@ -314,8 +346,8 @@ numbers); (2) stricter judge, esp.\ long answers (short quartile 0.89 matches
 paper exactly; longest quartile only 0.53); (3) different standalone models
 (references only, never ranked against each other or paper); (4) noisier
 extraction (LCR 0.82: chunker merges small sections, root cause identified to
-the chunker, not hand-waved); (5) faithfulness gap decomposed above (60\%
-protocol, 40\% strictness+noise).
+the chunker, not hand-waved); (5) faithfulness gap decomposed above (75\%
+protocol, 25\% strictness+noise).
 
 %====================================================================
 \section{Proposed fixes (evidence + real cost each)}
