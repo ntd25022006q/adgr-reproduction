@@ -142,13 +142,11 @@ table with one-line causes is in the report.
 
 | Paper | Here | Measured effect |
 |---|---|---|
-| Commercial generator | Qwen2.5-14B-Instruct-AWQ, temp 0, local vLLM | deterministic answers |
-| Commercial embedding | embeddinggemma:300m (768-dim) | rebuilt index at −0.4% relations |
-| Commercial reranker | Qwen3-Reranker-0.6B (+ CPU fallback) | exact-length scores verified |
+| Generator / embedding / reranker | SAME models per paper Sec 5.1 (Qwen2.5-14B, embeddinggemma:300m, Qwen3-Reranker-0.6B, vLLM, temp 0) | identical; only vector store differs (numpy+BM25 vs NanoVectorDB) |
 | GPT-5.5 judge | solar-pro4, same protocol | ~0.08 scale shift, rankings kept |
 | 7 paid standalone LLMs | 7 free models (zero overlap) | references only |
 | Manual gold labels | slug-gold + single-gold proxies (agree) | paper 0.71 inside range |
-| Released chunker | H2 rule reverse-engineered (91.9%) | ~9.4 hits/chunk density, LCR −9pp |
+| Released chunker | authors' H2 code (thesis_src, external), 91.9% by count | 8% gap from dead URLs + filtering; ~9.4 hits/chunk |
 | Official RAGAS library | formulas reimplemented | ans.rel 0.66 / rec 0.64 / prec 0.86 |
 | Two-step faithfulness | one-step (cheap) + two-step check | 0.41 vs 0.77 on same data |
 

@@ -137,13 +137,11 @@ nguyên nhân một dòng nằm trong báo cáo.
 
 | Paper | Ta | Ảnh hưởng đã đo |
 |---|---|---|
-| Mô hình sinh thương mại | Qwen2.5-14B-Instruct-AWQ, temp 0, vLLM local | đáp án quyết định luận |
-| Embedding thương mại | embeddinggemma:300m (768 chiều) | index dựng lại −0,4% relation |
-| Reranker thương mại | Qwen3-Reranker-0.6B (+ fallback CPU) | đủ score đã verify |
+| Generator / embedding / reranker | ĐÚNG model paper Sec 5.1 (Qwen2.5-14B, embeddinggemma:300m, Qwen3-Reranker-0.6B, vLLM, temp 0) | đồng nhất; chỉ khác kho vector (numpy+BM25 thay NanoVectorDB) |
 | Judge GPT-5.5 | solar-pro4, cùng protocol | lệch thang ~0,08, giữ hạng |
 | 7 standalone trả phí | 7 mô hình miễn phí (khác hẳn) | chỉ tham khảo |
 | Gold labels chấm tay | slug-gold + single-gold (đồng thuận) | số paper nằm trong khoảng |
-| Chunker tác giả | Suy ngược quy tắc H2 (91,9%) | mật độ ~9,4 lượt/chunk, LCR −9 điểm |
+| Chunker tác giả | code H2 của tác giả (thesis_src, ngoài repo), 91,9% theo số lượng | thiếu 8% do URL chết + lọc; mật độ ~9,4 lượt/chunk |
 | Lib RAGAS gốc | Cài lại đúng công thức gốc | ans.rel 0.66 / rec 0.64 / prec 0.86 |
 | Faithfulness 2 bước | 1 bước (rẻ) + kiểm tra 2 bước | 0.41 so với 0.77 cùng dữ liệu |
 

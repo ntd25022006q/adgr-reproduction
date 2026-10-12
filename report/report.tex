@@ -63,10 +63,10 @@ what to conclude, and how to answer follow-up questions.
 \item \textbf{Corpus:} crawled 1,934 medical articles (5 dead URLs, 4 rescued
 via alternate sources, 1 dropped with a written record). Hard part: 429
 rate-limits forced retries spread over many hours.
-\item \textbf{Chunking:} one section = one chunk $\rightarrow$ 15,837 chunks
-(91.9\% of the paper; min 126, median 799, mean 1,079 chars). Hard part: the
-authors released no chunker code, so the H2 rule was reverse-engineered from
-the text and checked by count.
+\item \textbf{Chunking:} the authors' H2 code (\texttt{thesis\_src}), so the
+algorithm matches; 8\% missing from 5 dead URLs + doc filtering. Hard part:
+the chunker is not released with the paper, so this pipeline step depends on
+external code (documented in the README).
 \item \textbf{KG:} Qwen2.5-14B temp 0 over every chunk $\rightarrow$ 52,578
 entities / 106,279 relations (paper: 49,274 / 106,666); 3.3 distinct entities
 per chunk on average (densest chunk: 171 extraction hits). Hard part: 15,837
@@ -97,16 +97,15 @@ count toward $n$ (\texttt{tab5\_5run} pattern).
 \end{itemize}
 
 %====================================================================
-\section{Deviations from the paper (complete list)}
-Every substitution below is fixed and disclosed; none is hidden in the numbers.
+\section{Similarities and deviations vs the paper (complete list)}
+Matches and deviations are all disclosed; none is hidden in the numbers.
 \begin{itemize}[leftmargin=*]
-\item \textbf{Generator:} Qwen2.5-14B-Instruct-AWQ locally via vLLM, temp 0,
-max 400 tokens (no access to the paper's commercial model; a strong open
-model, temp 0 for determinism: identical inputs always yield identical answers).
-\item \textbf{Embedding:} \texttt{embeddinggemma:300m} (768-dim) instead of a
-commercial embedding (no API access).
-\item \textbf{Reranker:} Qwen3-Reranker-0.6B instead of a commercial
-cross-encoder (fits local VRAM; a mid-run OOM moves that row to CPU).
+\item \textbf{MATCHES paper Sec.~5.1 (not substitutions):} Qwen2.5-14B-Instruct
+-AWQ for generation and KG extraction, \texttt{embeddinggemma:300m} embedding
+(768-dim), Qwen3-Reranker-0.6B reranker, vLLM, temp 0 --- same models, same
+settings. Only the vector store differs (ours: numpy matrices + BM25; paper:
+NanoVectorDB) while the embedding vectors are identical, so lookup is
+equivalent.
 \item \textbf{Judge:} solar-pro4 instead of GPT-5.5 (no GPT-5.5 API access; its
 strictness was measured via the original-prompt cross-check in Table 5).
 \item \textbf{Gold labels:} the authors' manual gold $\rightarrow$ two proxies:
@@ -115,9 +114,11 @@ single-gold (pessimistic: correct = the single most similar chunk). Without
 hand-made labels, paper numbers are never impersonated; both scales reported.
 \item \textbf{Standalone:} the paper's 7 paid models $\rightarrow$ 7 free models,
 zero overlap (reference points only, never ranked against the paper).
-\item \textbf{Chunker:} H2 rule reverse-engineered (no code; 91.9\% match by
-count; measured consequences: $\sim$9.4 extraction hits/chunk (Figure 3) and
-lower LCR).
+\item \textbf{Chunker USES the authors' H2 code} (\texttt{thesis\_src}, outside
+the repo, not redistributed): 91.9\% match by count; the missing 8\% comes from
+5 dead URLs + doc filtering (only docs with $>$200 chars of markdown kept) ---
+input data differs, the algorithm does not. Measured consequences: $\sim$9.4
+extraction hits/chunk (Figure 3) and lower LCR.
 \item \textbf{RAGAS:} reimplemented from the published formulas instead of the
 official library (to share the solar judge and control cost; standard RAGAS on
 300 samples, of which ctx.rec. has data for 275 and ctx.prec. for 46; formulas
@@ -310,7 +311,8 @@ entity/relation descriptions unlike the LightRAG baselines --- the paper's own
 Sec.~5.2 notes this composition difference). Retrieval 2.36s vs 3.19s
 (lighter index + memoized keywords); generation 5.82s vs 6.66s (shorter
 contexts generate faster). Retrieval-plus-generation total: 9.85s
-$\rightarrow$ 8.18s.
+$\rightarrow$ 8.18s. (The paper's $-$67\% is ADGR-vs-baselines; our $-$23\%
+is ours-vs-paper-ADGR --- our contexts are leaner still.)
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab6_eff.png}\end{center}
 \textit{Figure 9 in depth:} left (tokens), right (latency, dashed = paper).
 Our bars lower everywhere. \textit{The economic argument:} spend retrieval

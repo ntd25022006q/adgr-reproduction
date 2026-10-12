@@ -60,10 +60,9 @@ câu hỏi phản biện ra sao.
 \begin{itemize}[leftmargin=*]
 \item \textbf{Corpus:} crawl 1.934 bài y khoa (5 URL chết, cứu 4 bằng nguồn
 thay thế, 1 bỏ có ghi rõ). Khó: rate-limit 429 nên phải rải retry nhiều giờ.
-\item \textbf{Chunking:} một mục (section) = một chunk $\rightarrow$ 15.837
-chunk (91,9\% bài báo; min 126, median 799, mean 1.079 ký tự). Khó: tác giả
-không công bố code chunker nên suy ngược quy tắc H2 từ văn bản rồi kiểm bằng
-số lượng.
+\item \textbf{Chunking:} dùng code H2 của tác giả (\texttt{thesis\_src}) nên
+khớp thuật toán; thiếu 8\% do 5 URL chết + lọc doc. Khó: tác giả không công bố
+kèm repo nên đường chunker phụ thuộc code ngoài (đã ghi rõ trong README).
 \item \textbf{KG:} Qwen2.5-14B temp 0 trích từng chunk $\rightarrow$ 52.578
 entity / 106.279 relation (bài báo: 49.274 / 106.666); trung bình 3,3 entity
 riêng/chunk (chunk dày nhất: 171 lượt trích). Khó: 15.837 chunk qua
@@ -91,16 +90,14 @@ token, rẻ 28 lần); lỗi 429 thì retry và không tính run lỗi vào $n$ 
 \end{itemize}
 
 %====================================================================
-\section{Những điểm khác bài báo và lý do (liệt kê đủ)}
-Mọi thay thế đều cố định và công bố; không điểm nào giấu trong số liệu.
+\section{Những điểm giống và khác bài báo (liệt kê đủ)}
+Điểm giống và khác đều công bố; không điểm nào giấu trong số liệu.
 \begin{itemize}[leftmargin=*]
-\item \textbf{Generator:} Qwen2.5-14B-Instruct-AWQ local qua vLLM, temp 0,
-max 400 token (không có quyền dùng mô hình thương mại của bài báo; chọn mô
-hình mở mạnh, temp 0 để quyết định luận: cùng đầu vào luôn ra cùng đáp án).
-\item \textbf{Embedding:} \texttt{embeddinggemma:300m} (768 chiều) thay
-embedding thương mại (không có API).
-\item \textbf{Reranker:} Qwen3-Reranker-0.6B thay bộ rerank thương mại
-(vừa VRAM máy local; OOM giữa chừng thì dòng đó chuyển CPU).
+\item \textbf{KHỚP paper Sec.~5.1 (không phải thay thế):} generator + trích KG
+Qwen2.5-14B-Instruct-AWQ, embedding \texttt{embeddinggemma:300m} (768 chiều),
+reranker Qwen3-Reranker-0.6B, vLLM, temp 0 --- cùng mô hình, cùng cấu hình.
+Chỉ khác kho vector (ta: ma trận numpy + BM25; paper: NanoVectorDB) nhưng
+vector embedding đồng nhất nên lookup tương đương.
 \item \textbf{Judge:} solar-pro4 thay GPT-5.5 (không có API GPT-5.5; đã đo độ
 khó tính qua đối chiếu prompt gốc ở mục Bảng 5).
 \item \textbf{Gold labels:} manual gold của tác giả $\rightarrow$ 2 proxy:
@@ -109,9 +106,11 @@ slug-gold (thang lạc quan: đáp án đúng = chunk cùng bài báo) và singl
 không mạo danh số paper; công bố cả hai thang.
 \item \textbf{Standalone:} 7 mô hình trả phí của bài báo $\rightarrow$ 7 mô
 hình miễn phí, zero overlap (chỉ làm mốc tham khảo, không so với bài báo).
-\item \textbf{Chunker:} suy ngược quy tắc H2 (không có code; khớp 91,9\% theo
-số lượng; hệ quả đo được: mật độ trích $\sim$9,4 lượt/chunk (Hình 11) và LCR
-thấp hơn).
+\item \textbf{Chunker DÙNG code H2 của tác giả} (\texttt{thesis\_src}, ngoài
+repo, không công bố lại): khớp 91,9\% theo số lượng; thiếu 8\% do 5 URL chết +
+lọc doc (chỉ giữ doc có markdown $>$200 ký tự) --- khác ở dữ liệu vào, không ở
+thuật toán. Hệ quả đo được: mật độ trích $\sim$9,4 lượt/chunk (Hình 3) và LCR
+thấp hơn.
 \item \textbf{RAGAS:} tự cài đặt theo công thức công bố thay vì lib chính
 thức (để dùng chung judge solar, kiểm soát chi phí; RAGAS-chuẩn chạy trên 300
 mẫu trong đó ctx.rec. đủ dữ liệu 275 mẫu, ctx.prec. 46 mẫu; công thức đã đối
@@ -289,7 +288,9 @@ hạng).
 mô tả entity/relation như baseline LightRAG --- chính bài báo Sec.~5.2 cũng ghi
 khác biệt thành phần này). Retrieval 2,36s so với 3,19s (chỉ mục nhẹ + memoize
 keyword); generation 5,82s so với 6,66s (ngữ cảnh ngắn sinh nhanh hơn). Tổng
-retrieval+generation: 9,85s $\rightarrow$ 8,18s.
+retrieval+generation: 9,85s $\rightarrow$ 8,18s. (Mức $-$67\% của paper là
+ADGR-so-baseline; mức $-$23\% của ta là ta-so-ADGR-paper --- ngữ cảnh ta còn
+gọn hơn cả ADGR gốc.)
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab6_eff.png}\end{center}
 \textit{Hình 9 đọc kỹ:} trái (token), phải (latency, vạch đứt là bài báo). Cột
 của ta thấp hơn khắp nơi. \textit{Lập luận kinh tế:} tốn công retrieval để tiết
