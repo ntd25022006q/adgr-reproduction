@@ -8,7 +8,7 @@
 \usepackage{enumitem}
 \usepackage{geometry}
 \geometry{margin=1in}
-\title{Independent Reproduction of ADGR:\\ full pipeline, full tables, every figure explained}
+\title{Weekly Report: Independent Reproduction of ADGR\\ \large Full pipeline, full tables, every figure explained}
 \date{12/10/2026}
 \begin{document}
 \maketitle
@@ -17,7 +17,7 @@
 \newpage
 
 %====================================================================
-\section{Goals}
+\section{Weekly goals}
 \begin{itemize}[leftmargin=*]
 \item Rebuild the full ADGR system from the paper: corpus, knowledge graph,
 retrieval, evaluation.
@@ -28,35 +28,48 @@ Each figure below carries its own reading guide.
 \end{itemize}
 
 %====================================================================
-\section{Work done, part by part}
+\section{Work done, part by part (each step with its difficulty)}
 \begin{itemize}[leftmargin=*]
 \item \textbf{Corpus:} crawled 1,934 medical articles (5 dead URLs, 4
 recovered from alternates, disclosed); cleaned HTML keeping structure.
+Hard part: transient 429 blocks required spaced retries over hours.
 \item \textbf{Chunking:} one H2 section = one chunk $\rightarrow$ 15,837
-chunks (91.9\% of paper; min 126, median 799, mean 1,079 chars).
+chunks (91.9\% of paper; min 126, median 799, mean 1,079 chars). Hard part:
+no author chunker code, so the H2 rule was inferred from the paper text and
+validated by count (91.9\% match).
 \item \textbf{Graph:} Qwen2.5-14B temp 0 $\rightarrow$ 52,578 entities /
 106,279 relations (paper: 49,274 / 106,666); 10.6 entities/chunk average.
+Hard part: 15,837 chunks through a 14B model takes tens of GPU hours with
+occasional malformed outputs; per-chunk checkpoints plus defensive parsing
+made it resumable.
 \item \textbf{Retrieval:} 300 questions $\times$ 5 pipeline variants (full +
 4 ablations, each disabling exactly one module per Sec.~5.8) + 2 LightRAG
-baselines with rerank off per Sec.~5.2.
+baselines with rerank off per Sec.~5.2. Hard part: one GPU shared with
+vLLM + ollama + reranker + an external training job (4.4GB) --- required a
+per-stage VRAM budget, maxlen cuts, CPU keywords, and keyword memoization
+(1 call/question instead of 5).
 \item \textbf{Scoring:} Hit/MRR/nDCG (dual gold proxies); 4-part RAGAS by
 official algorithms; AI judge on 4 dims $\times$ 5 independent runs; per-row
-tokens and latency.
+tokens and latency. Hard part: one dead API key mid-run poisoned 123 rows
+before detection --- replaced by a quota guard that halts loudly instead of
+ever silently marking failures as done.
 \item \textbf{Quality control:} per-question checkpoints (any crash loses
 $\le$1 row); self-checks after each stage (bad numbers halt loudly via
-validation gates); every bug fixed with remote-verified evidence (43 total).
+validation gates, 8 boundaries); every bug fixed with remote-verified
+evidence (43 total).
 \end{itemize}
 
 %====================================================================
 \section{Main contributions of this reproduction}
 (1) Graph at 92--107\% of paper scale \textit{with} all four quality metrics
 recomputed from raw extraction (DSER 0.913, SCR 0.884, LCR 0.816).
-(2) Found and fixed 2 ablation arms computed against Sec.~5.8. (3) Official
-RAGAS algorithms reimplemented. (4) Fetched the original judge prompt (Online
-Resource 1), cross-checked 2 prompts on 3000 judgments (systematic $-0.09$
-scale shift, rankings kept). (5) Decomposed the faithfulness gap by experiment
-(two-step 0.77 vs one-step 0.41 vs paper 0.89). (6) Operating rules distilled
-from 43 real failures.
+(2) Found and fixed 2 ablation arms computed against Sec.~5.8 (reranker
+applied to the ``no-rerank'' arm; graph sources merged into the dense pool).
+(3) Official RAGAS algorithms reimplemented. (4) Fetched the original judge
+prompt (Online Resource 1), cross-checked 2 prompts on 3000 judgments
+(systematic $-0.09$ scale shift, rankings kept). (5) Decomposed the
+faithfulness gap by experiment (two-step 0.77 vs one-step 0.41 vs paper
+0.89). (6) Operating rules distilled from 43 real failures.
 
 %====================================================================
 \section{Function of every entity in detail}
@@ -74,18 +87,18 @@ chunk id, temp 0, delimiter format.
 descriptions, two-way graph-to-chunk maps (960\,MB, 8 files).
 \item \textbf{Keywords:} 3--6 short $K_l$ + 1-sentence $K_h$, lexical fallback,
 memoized (1 call/question).
-\item \textbf{Anchors:} BM25 top-10 $\cup$ dense top-10, $\tau_{anchor}$ filter,
+\item \textbf{Anchors:} BM25 top-10 union dense top-10, threshold filter,
 overlap bonus, top-15.
-\item \textbf{Edges:} one-hop neighborhoods, $\tau_{edge}$ filter, joint score,
-quota $m$, cap $N_{max}$.
+\item \textbf{Edges:} one-hop neighborhoods, edge filter, joint score, quota
+$m$, cap $N_{max}$.
 \item \textbf{Global/direct:} top-$n_g$ relations + top-$n_s$ chunks.
-\item \textbf{Merge:} rank by query similarity keeping $\lfloor rn/2\rfloor$,
-round-robin interleave, dedup ($\sim$100-chunk pools).
-\item \textbf{Reranker:} Qwen3-0.6B, GPU/CPU auto-pick with per-row fallback,
-exact-length scores.
+\item \textbf{Merge:} rank keeping $\lfloor rn/2\rfloor$, round-robin
+interleave, dedup ($\sim$100-chunk pools).
+\item \textbf{Reranker:} Qwen3-0.6B with GPU/CPU auto-pick and per-row
+fallback, exact-length scores.
 \item \textbf{Generator:} vLLM Qwen2.5-14B-AWQ temp 0, 400 tokens max.
 \item \textbf{Judges:} Hit/MRR/nDCG, 4 RAGAS parts, 4 dims $\times$ 5 runs
-(cost escalation, quota guard), timers.
+with cost escalation and quota guard, timers.
 \item \textbf{Merger:} 8 tables + 10 figures; missing files land in pending.
 \end{itemize}
 
@@ -113,16 +126,20 @@ Table & Metric & Paper & Ours (author / rebuilt index) \\\midrule
 Chunks short 8\% (5 dead links + coarser merging); entities +6.7\% (coarser
 chunks pack more entities each); relations $-$0.4\% (near-identical).
 DSER/SCR above 0.88; LCR 0.82 vs 0.91 (more fragmented graph, recomputed from
-raw extraction, not omitted).
+raw extraction instead of omitted).
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab1_scale.png}\end{center}
-\textit{Figure 1 (log scale: relations outnumber chunks 6:1):} all three pairs
-level -- no dimension critically missing. If any orange bar sat a full order
-below, that extraction area would need rework; none does.
+\textit{Figure 1 in detail (log scale: relations outnumber chunks 6:1, so a
+linear axis would crush the chunk bars unreadable):} all three pairs level
+with each other. \textit{What it proves:} matching scale, no dimension
+critically missing. \textit{If asked why 8\% fewer chunks:} 5 URLs died plus
+small-section merging; measured impact is Hit@10 0.68 vs 0.79 across indexes,
+disclosed.
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab1_quality.png}\end{center}
-\textit{Figure 2:} DSER (\% in-schema entities), SCR (\% valid relations), LCR
-(\% in giant component). All above 0.81, within 2--9pp. LCR gap (-9pp) is the
-largest Tab.1 shortfall, traced to coarser chunking; retrieval still works
-(Table 3), so the connected core suffices.
+\textit{Figure 2 in detail:} DSER (\% in-schema entities), SCR (\% valid
+relations), LCR (\% in giant component). All above 0.81, within 2--9pp.
+\textit{Deepest gap:} LCR $-$9pp, traced to coarser chunking (long chunks span
+disjoint topics whose entities never link). Retrieval still works (Table 3),
+so the connected core suffices.
 
 \subsection{Table 3 -- Retrieval coverage}
 Hit@10 full: 0.79 / 0.68 vs paper 0.71 -- same range on proxies. Arm order
@@ -133,27 +150,28 @@ proxies agree on the ranking exactly.
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab3_hit.png}\end{center}
 \textit{Figure 3 in detail:} x = K (top-1/3/5/10), y = hit rate. Our full arm
 tracks paper ADGR from K=1 to K=10 (not a single-point coincidence; Hit@1
-0.43 vs 0.60 is a genuine rank-1 weakness). Five lines spread 0.79--0.90:
-ablations truly differ (a past bug that overlapped all 5 was caught and fixed
-before measuring). Dense\_only on top is the proxy artifact dissected above --
-state this proactively.
+0.43 vs 0.60 is a genuine rank-1 weakness, converging by Hit@5). Five lines
+spread 0.79--0.90: ablations truly differ (a past bug that overlapped all 5
+was caught and fixed before measuring). Dense\_only on top is the proxy
+artifact dissected above -- state this proactively.
 
-\subsection{Table 4 -- Grounded answer quality, the biggest gap, fully dissected}
+\subsection{Table 4 -- Grounded quality, the biggest gap, fully dissected}
 Faithfulness 0.41 vs 0.89. Three measured layers: (1) our SHORT answers match
 (0.89) -- pipeline intact, gap lives in long answers; (2) proper two-step
 scoring on identical data reaches 0.77 -- $\sim$60\% of the gap is our
 one-step shortcut; (3) remainder is stricter judge + noisier data (beyond
-reach: no GPT-5.5 access). Relevancy 0.90, dim4 0.84 high. Precision 0.86
-vs 0.97: precise but under-covering (recall 0.64 vs 0.94).
+reach: no GPT-5.5 access). Relevancy 0.90, dim4 0.84 high. Precision 0.86 vs
+0.97: precise but under-covering (recall 0.64 vs 0.94).
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab4_ragas.png}\end{center}
-\textit{Figure 4:} two of three pairs track; faithfulness diverges alone. The
-whole Table-4 gap sits in exactly one cell -- open here when asked where the
-system is worse, then walk the three layers.
+\textit{Figure 4 in detail:} three pairs (Faithfulness, Answer relevancy,
+4-dim mean). Two pairs track; faithfulness diverges alone. The whole Table-4
+gap sits in exactly one cell -- open here when asked where the system is
+worse, then walk the three layers.
 \begin{center}\includegraphics[width=0.7\textwidth]{figs/fig_faith_gap.png}\end{center}
-\textit{Figure 5:} 0.41 $\rightarrow$ 0.77 $\rightarrow$ 0.89, each step an
-experiment splitting the causes. On ``why not fix it to match'': a real fix
-needs a different judge model (no access); reflowing the judging to flatter
-our numbers would be metric gaming -- refused on principle.
+\textit{Figure 5 in detail:} 0.41 $\rightarrow$ 0.77 $\rightarrow$ 0.89, each
+step an experiment splitting the causes. On ``why not fix it to match'': a
+real fix needs a different judge model (no access); reflowing the judging to
+flatter our numbers would be metric gaming -- refused on principle.
 
 \subsection{Table 5 -- Five-run judging, rankings kept}
 ADGR 0.858 vs paper 0.792; order ADGR $\approx$ Mix $>$ Hybrid $>$ standalone
@@ -163,40 +181,42 @@ judgments. Mix $\approx$ ADGR (gap 0.0004): 20\% identical/near-identical
 answers (shared temp-0 generator + overlapping contexts) -- a property of
 every same-generator RAG comparison, paper included.
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab5.png}\end{center}
-\textit{Figure 6:} bars = 5-run means, error bars = SEM. ADGR highest
-\textit{with small bars} -- high AND stable, not one lucky judging. Paper's
-0.79 line sits below. On ``why above paper'': different judge calibration
-(measured $-0.09$), identical rankings, so comparison conclusions stand.
+\textit{Figure 6 in detail:} bars = 5-run means, error bars = SEM. ADGR bar
+highest \textit{with small bars} -- high AND stable, not one lucky judging.
+Paper's 0.79 line sits below. On ``why above paper'': different judge
+calibration (measured $-0.09$), identical rankings, so comparison conclusions
+stand.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab5_prompt.png}\end{center}
-\textit{Figure 7:} side-by-side prompts per model. Verbose models (14B
-$\sim$500 words, cf-llama 647) drop hardest under the paper prompt, concise
-ones unchanged. Conclusion: the verbosity guard works as designed; results
-are robust to prompt wording (no rank flips).
+\textit{Figure 7 in detail:} side-by-side prompts per model. Verbose models
+(14B around 500 words, cf-llama 647) drop hardest under the paper prompt,
+concise ones unchanged. Conclusion: the verbosity guard works as designed;
+results are robust to prompt wording (no rank flips).
 
 \subsection{Table 6 -- Cost: cheaper than paper}
 Input 3,441 vs 4,490 tokens (tighter contexts); retrieval 2.36s vs 3.19s;
 generation 5.82s vs 6.66s.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab6_eff.png}\end{center}
-\textit{Figure 8:} our bars lower on tokens and latency -- the visual answer
-to whether the graph machinery pays off: spend retrieval, save generation.
+\textit{Figure 8 in detail:} our bars lower on tokens and latency -- the
+visual answer to whether the graph machinery pays off: spend retrieval, save
+generation, exactly the claimed trade-off.
 
 \subsection{Table 7 -- Ablations hurt in paper order}
 All 4 arms spread (faith 0.36--0.42, recall 0.64--0.70); dense\_only weakest,
 no\_edge\_filter nearest full -- same module-importance order. Two arms were
 miscomputed against Sec.~5.8 and fixed before measuring.
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab7_abl.png}\end{center}
-\textit{Figure 9:} our bars below paper RAGAS (different judge) but the
-\textbf{spread shape matches} -- ablations bite for real. Point at the gaps
-to show each component matters.
+\textit{Figure 9 in detail:} our bars below paper RAGAS (different judge) but
+the \textbf{spread shape matches} -- ablations bite for real. Point at the
+gaps to show each component matters.
 
 \subsection{Table 8 -- Aescin story}
 Hybrid drags 139 relations (other drugs included), Mix 80, ADGR 57 keeping the
-3 needed. Ours: 12--14 entities / 39--41 relations -- same compact style (finer
-entity splitting explains more nodes, fewer edges).
+3 needed. Ours: 12--14 entities / 39--41 relations -- same compact style
+(finer entity splitting explains more nodes, fewer edges).
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab8_case.png}\end{center}
-\textit{Figure 10 (log scale, each notch 10x):} ADGR contexts an order of
-magnitude smaller than baselines. Open Q\&A with this figure -- the single
-most visual proof of ``compact yet accurate''.
+\textit{Figure 10 in detail (log scale, each notch 10x):} ADGR contexts an
+order of magnitude smaller than baselines. Open Q\&A with this figure -- the
+single most visual proof of compact yet accurate in the whole report.
 
 %====================================================================
 \section{Verdict table: paper vs ours per metric}
@@ -210,13 +230,13 @@ LCR & 0.906 & 0.816 & EXPLAINED (coarser chunker) \\
 Hit@10 full & 0.71 & 0.79 / 0.68 & MATCH (proxy range) \\
 RAGAS overall & 0.8792 & 0.64 equiv. & EXPLAINED (decomposed) \\
 Faithfulness & 0.8878 & 0.41 / 0.77 (2-step) & EXPLAINED 3 layers \\
-AnsRel / CtxPrec & 0.7124 / 0.9733 & 0.90 / 0.86 | 0.66 / 0.86 (true) & CLOSE--MATCH \\
-CtxRec | 0.9433 | 0.64 (true) | GAP (batched noise + coverage) \\
-Tab.5 ADGR | 0.7921 | 0.858 / 0.778 | MATCH (paper inside our prompt range) \\
-Tab.5 ranking | ADGR$>$Mix$>$Hyb$>$std | identical | MATCH \\
-Tab.6 tokens / latency | 4490 / 3.2s+6.7s | 3441 / 2.4s+5.8s | SUPERIOR (leaner) \\
-Tab.7 spread | 0.60--0.88 | spread confirmed | MATCH DIRECTION \\
-Tab.8 compact | 5/57 vs 139 | 12--14/39--41 vs large | MATCH REGIME \\\bottomrule
+AnsRel / CtxPrec & 0.7124 / 0.9733 & 0.90 / 0.86 ; 0.66 / 0.86 (true) & CLOSE--MATCH \\
+CtxRec & 0.9433 & 0.64 (true) & GAP (batched noise + coverage) \\
+Tab.5 ADGR & 0.7921 & 0.858 / 0.778 & MATCH (paper inside our prompt range) \\
+Tab.5 ranking & ADGR$>$Mix$>$Hyb$>$std & identical & MATCH \\
+Tab.6 tokens / latency & 4490 / 3.2s+6.7s & 3441 / 2.4s+5.8s & SUPERIOR (leaner) \\
+Tab.7 spread & 0.60--0.88 & spread confirmed & MATCH DIRECTION \\
+Tab.8 compact & 5/57 vs 139 & 12--14/39--41 vs large & MATCH REGIME \\\bottomrule
 \end{tabular}}%
 \end{table}
 Reading rule: 9 MATCH/CLOSE/SUPERIOR, 5 EXPLAINED (cause measured), 0
@@ -229,15 +249,14 @@ differences without a measured cause.
 Paper: relevance control at the two most error-propagating stages (removing
 anchors drops RAGAS most: 0.88$\rightarrow$0.72); compact contexts ($-67\%$
 tokens) cutting total latency; honest ablations; public resources. Ours:
-Table-2 lock 13/13; gates blocking corrupt numbers (fired twice, both
+Table-2 config lock 13/13; gates blocking corrupt numbers (fired twice, both
 correct); dual-proxy absolute agreement; every substitution disclosed with
 measured effect; 43 fixes with remote-verified evidence.
 
 %====================================================================
 \section{Weaknesses and limits, stated plainly with numbers}
-Paper (Sec 6.3): KG-quality dependence; fixed top-K (too much for easy, too
-little for hard). Ours: (1) proxies favor dense by definition (measured 0.90,
-disclosed, never presented as paper numbers); (2) stricter judge, esp.\ long
+Paper (Sec 6.3): KG-quality dependence; fixed top-K. Ours: (1) proxies favor
+dense by definition (measured 0.90, disclosed); (2) stricter judge, esp.\ long
 answers (short 0.89 vs long 0.53 by quartile); (3) different standalone models
 (references only); (4) noisier extraction (LCR 0.82); (5) faithfulness gap
 decomposed above.
@@ -248,9 +267,8 @@ decomposed above.
 0.79) $\rightarrow$ classify easy/hard, skip graph for easy, $\sim$10$\times$
 cheaper, expect $\ge$95\%. $\sim$4h + $\sim$\$1. (2) \textit{Rank-fusion:}
 rerank drags Hit@1 $0.57\rightarrow0.25$; fusion keeps both. $\sim$3h.
-(3) \textit{Sufficiency stopping} (paper's own future work): stop when
-supported claims saturate. $\sim$5h. (4) \textit{Length control:} short
-answers match paper. $\sim$4h.
+(3) \textit{Sufficiency stopping} (paper's own future work). $\sim$5h.
+(4) \textit{Length control:} short answers match paper. $\sim$4h.
 
 %====================================================================
 \section{Significance and conclusion}
