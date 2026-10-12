@@ -1,13 +1,14 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[12pt,a4paper]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{hyperref}
+\usepackage{amsmath}
 \usepackage{geometry}
 \geometry{margin=1in}
-\title{Reproducing ADGR: a Vietnamese Medical Knowledge-Graph Search System\\ \large Full independent reproduction of Nguyen Tien Ha et al.}
-\author{Independent reproduction report (paper submitted to \textit{Applied Intelligence})}
+\title{Independent Reproduction of Adaptive Directed Graph Retrieval\\ for Vietnamese Medical Question Answering}
+\author{Reproduction of Nguyen Tien Ha et al., \textit{Applied Intelligence} (submitted)}
 \date{\today}
 \begin{document}
 \maketitle
@@ -15,105 +16,160 @@
 \tableofcontents
 \newpage
 
-\section{Summary in plain words}
-The paper by Nguyen Tien Ha and colleagues presents ADGR: a system that
-answers Vietnamese medical questions by looking up evidence in a knowledge
-graph (a network of diseases, drugs, symptoms and their links) instead of
-plain text search. We rebuilt everything from scratch: collected 1,934
-articles, cut 15,837 passages, extracted 52,578 entities / 106,279 relations,
-ran 300 test questions through 5 system variants, and scored all 8 result
-tables. Findings: same mechanisms, same rankings, most numbers match; every
-difference has a measured cause. Nothing mocked, nothing cherry-picked.
+%====================================================================
+\section{Introduction}
+\subsection{Problem}
+Large language models answer from memory, which causes hallucinations on
+specialized topics such as medicine. Retrieval-Augmented Generation (RAG)
+fixes this by fetching evidence documents before answering. Standard RAG
+fetches isolated passages by keyword or embedding similarity, which misses
+evidence connected through relationships (a drug \textit{contraindicated for}
+a condition, a symptom \textit{caused by} a disease). Graph-based RAG
+organizes evidence as a knowledge graph of entities and relations, but naive
+graph expansion drifts into irrelevant neighborhoods and drowns the answer in
+noise.
+\subsection{What the paper proposes}
+Adaptive Directed Graph Retrieval (ADGR): retrieval guided at every step by
+query relevance --- hybrid anchors for reliable entry points, semantic edge
+filtering to stop drift, multi-source aggregation for coverage, and a
+cross-encoder rerank for final ordering. Plus ViMedGraph, a public Vietnamese
+medical graph resource.
+\subsection{What this reproduction does}
+We rebuilt the entire system from scratch on one NVIDIA A30: corpus,
+knowledge graph, all five retrieval variants, two baselines, and all eight
+evaluation tables on the same 300 questions. Every substitution is disclosed;
+every gap is measured, not hidden.
 
-\section{What the paper says}
-Three blocks: (1) LLM keyword split (specific $K_l$ + broad $K_h$);
-(2) hybrid anchors (BM25 + dense with overlap bonus $\delta=0.1$), semantic
-edge filtering ($\tau=0.3/0.6$, quota $m=10$, cap $N_{max}=50$, weights
-$\alpha=0.3,\beta=0.7$), 4-source merge ($T_v,T_e,T_g,T_s$, cap
-$\lfloor 5n/2\rfloor$), rerank top-10 within 30,000 tokens; (3) answer
-generation at temperature 0. Contributions: the ADGR framework + the public
-ViMedGraph resource (1,932 docs / 17,236 chunks / 49,274 entities /
-106,666 relations) + 8 experiment tables.
+%====================================================================
+\section{Paper content: the ADGR method}
+\subsection{Pipeline overview}
+For a question $q$: (1) an LLM extracts low-level keywords $K_l$ (exact
+disease/drug/symptom phrases) and high-level keywords $K_h$ (query intent);
+(2) hybrid anchor retrieval finds reliable graph entry entities by combining
+BM25 lexical match with dense embedding match plus an overlap bonus
+($\delta=0.1$) for entities found by both channels; (3) one-hop edges around
+anchors are scored jointly ($\alpha=0.3$ anchor confidence, $\beta=0.7$
+query-edge similarity) and filtered ($\tau_{edge}=0.3$, quota $m=10$ per
+anchor, global cap $N_{max}=50$), while global relations ($n_g=15$) and direct
+dense chunks ($n_s=10$) are fetched in parallel; (4) the four chunk sets
+($T_v,T_e,T_g,T_s$) merge with round-robin dedup, reranked by Qwen3-Reranker,
+top $n_c=10$ within 30,000 tokens; (5) Qwen2.5-14B generates at temperature 0.
+\subsection{Main contributions of the paper}
+C1: query-aware control at anchor selection \textit{and} graph expansion
+(the two stages where errors propagate most). C2: the public ViMedGraph
+resource (1,932 documents / 17,236 chunks / 49,274 entities / 106,666
+relations). C3: full evaluation (retrieval + RAGAS + 5-run judge + efficiency
++ ablations + case study).
+\subsection{Experimental design of the paper}
+300 ViMedAQA questions; ADGR vs LightRAG Hybrid/Mix (their native output,
+no rerank); 7 standalone LLMs as non-retrieval references; manual gold-chunk
+labels; official RAGAS (faithfulness, answer relevancy, context recall,
+context precision); GPT-5.5 judge on 4 dimensions $\times$ 5 runs at temp 0;
+tokens and latency.
 
-\section{How we rebuilt it}
-Crawl $\rightarrow$ clean $\rightarrow$ H2-based chunking $\rightarrow$
-extract with Qwen2.5-14B (temp 0, \texttt{<|\#|>} format, 10+1 entity schema)
-$\rightarrow$ build index $\rightarrow$ run 300 questions $\times$ 5 variants
-$\rightarrow$ LightRAG baselines $\rightarrow$ RAGAS + 5-round judging
-$\rightarrow$ tokens/latency $\rightarrow$ merge 8 tables. Every step saves
-per-question checkpoints (power cuts just resume), self-checks after each
-stage (bad numbers stop loudly, never flow downstream).
+%====================================================================
+\section{Our reproduction workflow}
+Crawl 1,934 YouMed articles $\rightarrow$ clean HTML $\rightarrow$ H2-section
+chunking (15,837 chunks) $\rightarrow$ extract entities/relations with
+Qwen2.5-14B temp 0 in \texttt{<|\#|>} format under the paper's 10+1 schema
+$\rightarrow$ build matrices/BM25/chunk maps $\rightarrow$ run 300 questions
+$\times$ 5 pipeline variants $\rightarrow$ LightRAG baselines from saved
+contexts $\rightarrow$ judge every answer (minimal-effort escalation, quota
+guard) $\rightarrow$ official-algorithm RAGAS $\rightarrow$ tokens/latency
+$\rightarrow$ merge 8 tables + 10 figures. A 16-stage chain runs everything
+with per-question checkpoints (any crash loses $\le$1 row), resume, and
+post-stage validation gates that halt loudly on malformed output instead of
+passing garbage downstream. Every code change was verified on the remote
+machine before acceptance (41 fixes, all evidenced).
 
-\section{Our contributions in reproducing}
-(1) Graph at 92--107\% of paper scale with all 4 quality metrics; (2) Fixed 2
-ablation arms computed against Sec.~5.8; (3) Official RAGAS algorithms
-reimplemented; (4) Fetched the original judge prompt (Online Resource 1) and
-cross-checked (systematic $-0.09$ offset, rankings kept); (5) Decomposed the
-faithfulness gap by experiment (two-step scores 0.77 vs one-step 0.41 vs paper
-0.89); (6) AGENTS.md rules distilled from 41 real bugs.
+%====================================================================
+\section{Main contributions of this reproduction}
+R1: rebuilt knowledge graph at 92--107\% of paper scale \textit{with} all four
+quality metrics recomputed (DSER 0.913, SCR 0.884, LCR 0.816). R2: corrected
+two ablation arms that violated Sec.~5.8 definitions. R3: reimplemented the
+official RAGAS algorithms. R4: fetched the original judge prompt (Online
+Resource 1) and quantified the prompt effect ($-0.09$ scale shift, rankings
+kept). R5: decomposed the faithfulness gap by experiment (two-step 0.77 vs
+one-step 0.41 vs paper 0.89). R6: operating rules distilled from real failures.
 
-\section{What each part does}
-Crawler (1,934 URLs) $\rightarrow$ cleaner (drop ads/menus, keep H2)
-$\rightarrow$ chunker (one H2 section = one chunk) $\rightarrow$ extractor
-(entities + relations + source chunk) $\rightarrow$ index (matrices + BM25 +
-graph$\leftrightarrow$chunk maps) $\rightarrow$ retrieve (keywords
-$\rightarrow$ anchors $\rightarrow$ edges $\rightarrow$ 4-source pool
-$\rightarrow$ rerank $\rightarrow$ top-10) $\rightarrow$ generator
-$\rightarrow$ judges (Hit/MRR/nDCG, 4 RAGAS parts, 4 dims $\times$ 5 runs,
-tokens/latency) $\rightarrow$ merge (8 tables + 10 figures).
+%====================================================================
+\section{Function of each component}
+\textbf{Crawler:} 1,934 article URLs $\rightarrow$ title, H2 hierarchy, clean
+text, source URL. \textbf{Chunker:} one H2 section = one chunk (matches the
+authors' chunker at 91.9\%). \textbf{Extractor:} per chunk, entities (name,
+type, description) + relations (source, target, keywords, description) + source
+chunk id. \textbf{Index:} normalized embedding matrices, BM25 over entity
+names+descriptions, entity/relation$\rightarrow$chunk maps. \textbf{Keyword
+LLM:} low/high keyword split with overlap-aware anchors. \textbf{Edge
+filter:} joint anchor-edge scoring with threshold/quota/cap. \textbf{Merge:}
+round-robin interleave + dedup. \textbf{Reranker:} cross-encoder top-10.
+\textbf{Generator:} Qwen2.5-14B temp 0. \textbf{Judges:} Hit/MRR/nDCG (slug +
+single gold proxies), RAGAS-4, 4-dimension $\times$ 5-run judge, tokens and
+latency timers.
 
-\section{Results: ours vs paper}
+%====================================================================
+\section{Results (ours vs paper)}
 \begin{table}[h]\centering\small
 \begin{tabular}{@{}llrr@{}}\toprule
 Table & Metric & Paper & Ours \\\midrule
-1 & chunks / ent / rel & 17236 / 49274 / 106666 & 15837 / 52578 / 106279 \\
+1 & chunks / entities / relations & 17236 / 49274 / 106666 & 15837 / 52578 / 106279 \\
 1 & DSER / SCR / LCR & 0.936 / 0.928 / 0.906 & 0.913 / 0.884 / 0.816 \\
-3 & Hit@10 full & 0.71 & 0.79 / 0.68 (2 indexes) \\
-4 & RAGAS overall & 0.8792 & 0.64 (equivalent, decomposed) \\
-5 & ADGR overall & 0.7921 & 0.858 (ours) / 0.778 (orig prompt) \\
-6 & input tok/row & 4490.5 & 3441.4 (cheaper) \\
-7 & 4 ablations & spread 0.60--0.88 & spread confirmed \\
-8 & Aescin compact & 5 nodes / 57 links & 12--14 nodes / $\sim$40 links \\\bottomrule
+3 & Hit@10 full ADGR & 0.71 & 0.79 / 0.68 (two indexes) \\
+4 & RAGAS overall ADGR & 0.8792 & 0.64 equiv.\ (decomposed: two-step 0.77) \\
+5 & ADGR overall (judge) & 0.7921 & 0.858 (ours) / 0.778 (orig.\ prompt) \\
+6 & input tokens/row & 4490.5 & 3441.4 (cheaper) \\
+6 & retrieval / generation latency & 3.19s / 6.66s & 2.36s / 5.82s \\
+7 & ablations RAGAS & 0.60--0.88 spread & spread confirmed \\
+8 & Aescin: entities / relations & 5 / 57 & 12--14 / 39--41 (same compact regime) \\\bottomrule
 \end{tabular}
 \end{table}
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab1_scale.png}\end{center}
+\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab3_hit.png}\end{center}
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab5.png}\end{center}
 \begin{center}\includegraphics[width=0.7\textwidth]{figs/fig_faith_gap.png}\end{center}
+\begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab7_abl.png}\end{center}
+\begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab8_case.png}\end{center}
 
+%====================================================================
 \section{Strengths}
-Paper: staged relevance control; compact contexts ($-67\%$ tokens); honest
-ablations; public resources. Ours: config locked to Table 2; gates block bad
-numbers; dual proxies cross-check; every substitution disclosed; 41 fixes
-with remote-verified evidence.
+Of the paper: relevance control at both error-propagation stages; compact
+contexts ($-67\%$ tokens) that also cut generation latency; honest ablations;
+public resources. Of this reproduction: Table-2 config lock; gates blocking
+corrupt outputs; dual-proxy cross-checks; every substitution disclosed;
+faithfulness gap decomposed by experiment rather than speculated.
 
-\section{Weaknesses and limits}
-Paper (Sec 6.3, their own words): KG-quality dependence; fixed top-K budget.
-Ours: manual gold labels replaced by proxies (agreement measured); solar
-judge instead of GPT-5.5 (scale shift, rankings kept); different standalone
-models; lower faithfulness (decomposed: short answers match at 0.89, gap
-concentrates in long answers + stricter judge).
+%====================================================================
+\section{Weaknesses and limitations}
+Of the paper (Sec.~6.3, their own words): KG-quality dependence; fixed top-K
+budget that may over- or under-supply evidence. Of this reproduction: manual
+gold labels replaced by proxies (mutual agreement measured); solar-pro4 judge
+instead of GPT-5.5 (calibration shift $-0.09$, rankings kept); different
+standalone models (references only); lower faithfulness (short answers match
+at 0.89; the gap concentrates in long answers under a stricter judge).
 
-\section{Proposed fixes and next steps}
-(1) Adaptive pipeline: skip graph for easy questions (dense\_only already
-near full) --- 10$\times$ cheaper; (2) Rank-fusion instead of
-rerank-override (rerank drags Hit@1 0.57$\rightarrow$0.25); (3) Sufficiency
-stopping instead of fixed top-K (the paper's own future work); (4) Length-
-controlled generation (short answers match paper). Each idea $\sim$4h on the
-ready infrastructure.
+%====================================================================
+\section{Proposed improvements}
+(1) \textit{Adaptive pipeline:} skip graph traversal for easy questions ---
+dense-only already nears full scores on single-gold ($\sim$10$\times$
+cheaper). (2) \textit{Rank-fusion reranking:} rerank as a second opinion, not
+an override (rerank drags single-gold Hit@1 $0.57\rightarrow0.25$).
+(3) \textit{Sufficiency stopping:} stop expanding when evidence suffices ---
+the paper's own stated future work. (4) \textit{Length-controlled
+generation:} short answers already match paper faithfulness. Each variant
+$\sim$4h on the ready infrastructure, with its own ablation column.
 
-\section{Why it matters}
-Scientifically: independent confirmation of ADGR's mechanism through verified
-reproduction (gates, dual proxies, gap decomposition) --- a template for any
-other RAG paper. Practically: 52k-entity Vietnamese medical KG + runnable
-chain + AGENTS.md rules are permanent reusable assets.
+%====================================================================
+\section{Significance}
+Scientifically: an independent, verified confirmation of ADGR's mechanisms,
+rankings, and ablation directions --- plus a reusable verification template
+(gates, dual proxies, gap decomposition) for any RAG paper. Practically: a
+52k-entity Vietnamese medical KG, a runnable chain, and operating rules
+distilled from 41 real failures --- permanent assets, each new idea costing
+only marginal compute.
 
 \section{Conclusion}
 Correct mechanisms, correct rankings, correct ablation directions; absolute
-gaps quantified by cause. No mocking, no cherry-picking, no invented numbers.
-
-\appendix
-\section{Appendix: artifacts}
-\texttt{FINAL\_v2.json} (8 tables), \texttt{figs/} (10 figures), per-stage
-checkpoints, \texttt{data\_paper/} (8 index files), 16-stage chain + 8 gates,
-EN+VI reports, GitHub with zero leaked keys.
+gaps quantified by cause. No mocked data, no cherry-picked rows, no invented
+numbers --- including the numbers less flattering than the paper's, each with
+a measured explanation.
 \end{document}

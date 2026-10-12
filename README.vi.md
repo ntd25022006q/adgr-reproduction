@@ -1,5 +1,8 @@
 # Dựng lại hệ thống tìm kiếm y khoa ADGR — Tái hiện đầy đủ
 
+**🌐 Ngôn ngữ / Language: [Tiếng Việt](README.vi.md) | [English](README.md)**
+**📄 Báo cáo / Reports: [report_vi.pdf (VI)](report/report_vi.pdf) | [report.pdf (EN)](report/report.pdf)**
+
 Chúng tôi dựng lại từ đầu hệ thống ADGR trong paper của **Nguyen Tien Ha và
 cộng sự** (nộp tạp chí *Applied Intelligence*). ADGR là hệ thống trả lời câu
 hỏi y khoa tiếng Việt bằng cách tra cứu chứng cứ trong đồ thị tri thức (mạng

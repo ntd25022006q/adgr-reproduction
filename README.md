@@ -1,5 +1,8 @@
 # Rebuilding the ADGR Medical Search System — Full Reproduction
 
+**🌐 Language / Ngôn ngữ: [English](README.md) | [Tiếng Việt](README.vi.md)**
+**📄 Reports / Báo cáo: [report.pdf (EN)](report/report.pdf) | [report_vi.pdf (VI)](report/report_vi.pdf)**
+
 We rebuilt, from scratch, the ADGR system from the paper by **Nguyen Tien Ha
 et al.** (submitted to *Applied Intelligence*). ADGR is a search system that
 answers Vietnamese medical questions by looking up evidence in a knowledge
