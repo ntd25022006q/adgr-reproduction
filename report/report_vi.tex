@@ -82,6 +82,12 @@ phát hiện --- từ đó mọi hàm judge có quota guard: key chết là dừ
 \item \textbf{Quality control:} checkpoint từng câu (sập mất $\le$1 dòng);
 validation gate sau mỗi chặng (số xấu là exit 99 ầm ĩ, 8 biên); mọi lỗi sửa có
 bằng chứng verify trên máy (tổng 43 lỗi).
+\item \textbf{Ngân sách tài nguyên (đo thật):} vLLM 3 mức đã kiểm chứng
+(32k/0,72; 12k/0,62; 8k/0,50-8192; KV 1,91GB $<$ 2,25GB nên mức 12k hạ maxlen
+xuống 8192); một GPU chia 4 việc nên keyword rút bằng CPU; Solar giới hạn 100
+req/phút nên judge leo thang minimal x3 $\rightarrow$ low x1 (116 so với 3.273
+token, rẻ 28 lần); lỗi 429 thì retry và không tính run lỗi vào $n$ (mẫu
+\texttt{tab5\_5run}).
 \end{itemize}
 
 %====================================================================
@@ -214,8 +220,9 @@ nội bộ tạo tin cậy). Thứ tự \texttt{dense\_only} (0,90) $>$ \texttt{
 (0,89) $>$ full (0,79): hệ quả toán học của định nghĩa single-gold (chunk
 giống nhất thì dense trực tiếp dễ trúng nhất), không phải máy hỏng. Bằng
 chứng: 2 proxy độc lập (slug vs embedding) cho cùng thứ tự --- ngẫu nhiên
-không trùng được. Thang lạc quan slug-gold lên 0,94; thang bi quan single-gold
-0,79; số bài báo 0,71 nằm trong khoảng này.
+không trùng được. Chi tiết thang slug-gold chỉ mục gốc: Hit@1 0,68 / Hit@3
+0,85 / Hit@5 0,89 / Hit@10 0,94; chỉ mục dựng lại Hit@10 0,86 --- số bài báo
+0,71 nằm trong khoảng thang bi quan và lạc quan của ta.
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab3_hit.png}\end{center}
 \textit{Hình 3 đọc kỹ:} ngang = K (soi top-1/3/5/10), dọc = hit rate. Đường
 full của ta bám ADGR bài báo từ K=1 đến K=10 (không phải trùng 1 điểm; Hit@1
@@ -232,7 +239,8 @@ nguyên vẹn, hố nằm ở câu dài (càng nhiều claim càng dễ sai mộ
 khó hơn (solar so với GPT-5.5) + dữ liệu nhiễu hơn (không có GPT-5.5 --- ghi rõ
 giới hạn). Answer relevancy 0,90, dim4 0,84 cao. Precision 0,86 so với 0,97:
 gọn nhưng chưa đủ (recall 0,64 so với 0,94 --- gọn phải trả giá bằng bao phủ;
-thuật toán RAGAS chuẩn cho ans.rel. 0,66, ctx.prec. 0,86 trên 46--300 mẫu).
+thuật toán RAGAS chuẩn cho ans.rel. 0,66 (300 mẫu), ctx.rec. 0,64 (275 mẫu),
+ctx.prec. 0,86 (46 mẫu)).
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab4_ragas.png}\end{center}
 \textit{Hình 4 đọc kỹ:} 3 cặp (faithfulness, answer relevancy, trung bình 4
 dim). Hai cặp bám nhau, chỉ faithfulness tách. Toàn bộ hố Bảng 4 nằm đúng 1 ô
@@ -253,8 +261,9 @@ hệt/gần giống (chung generator temp 0 + ngữ cảnh trùng) --- đặc t�
 so sánh RAG chung máy sinh, bài báo cũng vậy.
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab5.png}\end{center}
 \textit{Hình 6 đọc kỹ:} cột = mean 5 run, râu = SEM (ổn định giữa các lượt: râu
-ngắn nghĩa là chấm thêm 5 lượt số vẫn gần như cũ). Cột ADGR cao nhất \textit{mà
-râu ngắn nhất} --- vừa cao vừa ổn định, không phải may mắn một lượt. Vạch 0,79
+ngắn nghĩa là chấm thêm 5 lượt số vẫn gần như cũ). Cột ADGR cao nhất với râu
+ngắn thứ hai (SEM 0,046 so với Mix 0,042; Hybrid 0,064) --- vừa cao vừa ổn
+định, không phải may mắn một lượt. Vạch 0,79
 bài báo nằm dưới. \textit{Nếu bị hỏi ``sao cao hơn bài báo'':} khác thang judge
 (đã đo $\sim$0,08 với prompt gốc), thứ hạng giống hệt, kết luận so sánh đứng
 vững bất kể thang.
@@ -283,14 +292,16 @@ báo: \texttt{dense\_only} yếu nhất (0,60), \texttt{no\_edge\_filter} gần 
 nhất (0,85) --- cùng thứ tự quan trọng (anchor quan trọng nhất: bỏ anchor RAGAS
 bài báo rớt 0,88$\rightarrow$0,72; edge filter ít nhất). Theo faith. của ta,
 \texttt{dense\_anchors} thấp nhất (0,356) --- hai thang cùng chỉ một kết luận:
-khâu anchor sống còn. Hai arm từng tính sai mô tả đã sửa trước khi đo (rerank
-lén + trộn nguồn đồ thị).
+khâu anchor sống còn. Chi tiết RAGAS bài báo từng arm: \texttt{dense\_only}
+0,60; \texttt{dense\_anchors} 0,72; \texttt{no\_rerank} 0,77;
+\texttt{no\_edge\_filter} 0,85; full 0,88 --- đúng thứ tự quan trọng giảm dần.
+Hai arm từng tính sai mô tả đã sửa trước khi đo (rerank lén + trộn nguồn).
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab7_abl.png}\end{center}
 \textit{Hình 9 đọc kỹ:} cột ta thấp hơn RAGAS bài báo (khác judge) nhưng
 \textbf{hình dáng độ chênh khớp} --- cùng thứ tự, chênh tương tự.
 \textit{Nếu bị hỏi ``module nào cũng cần à'':} chỉ khoảng cách giữa các cột
---- tháo cái nào điểm cũng rớt đúng thứ tự bài báo. Cột bằng nhau mới là kiến
-trúc chết; đằng này không phải.
+--- tháo module nào điểm cũng rớt đúng thứ tự bài báo, ngược với kiến trúc
+chết (các cột bằng nhau).
 
 \subsection{Bảng 8 -- Case Aescin: gọn mà trúng}
 Câu hỏi: ``Aescin chống chỉ định với ai?'' --- khó vì đòi giữ nguyên bộ ba
@@ -300,6 +311,9 @@ niệm, sai entity, dễ gây hại), Mix 80, ADGR chỉ 57 mà giữ đúng 3 r
 (mẫn cảm, phụ nữ mang thai, phụ nữ cho con bú). Ta: 12--14 entity / 39--41
 relation --- cùng phong cách gọn (ta chẻ entity mịn hơn nên nhiều node hơn, ít
 edge hơn).
+Đồng thuận giám khảo (Fleiss $\kappa$) trên 270 mẫu: 0,19 (nhị phân) / 0,14
+(3 mức) --- đã sửa bug thiếu hệ số 2 trong Po. Mức đồng thuận thấp là giới hạn
+của chấm tự động, đã công bố chứ không giấu.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab8_case.png}\end{center}
 \textit{Hình 10 đọc kỹ (trục log: mỗi nấc gấp 10 lần, bắt buộc vì 139 so với 5
 chênh 28 lần --- trục thường ép cột ADGR thành vô hình):} ngữ cảnh ADGR nhỏ

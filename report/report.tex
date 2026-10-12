@@ -58,6 +58,12 @@ ever silently marking failures as done.
 $\le$1 row); self-checks after each stage (bad numbers halt loudly via
 validation gates, 8 boundaries); every bug fixed with remote-verified
 evidence (43 total).
+\item \textbf{Resource budget (measured):} three verified vLLM profiles
+(32k/0.72; 12k/0.62; 8k/0.50-8192; KV 1.91GB $<$ 2.25GB forced the 12k maxlen
+down to 8192); one GPU shared four ways, so keywords run on CPU; Solar caps
+at 100 req/min, so judging escalates minimal x3 $\rightarrow$ low x1 (116 vs
+3273 tokens, 28x cheaper); 429s are retried and failed runs never count toward
+$n$ (\texttt{tab5\_5run} pattern).
 \end{itemize}
 
 %====================================================================
@@ -195,7 +201,9 @@ $>$ no\_rerank (0.89) $>$ full (0.79): mathematical consequence of the
 single-gold definition (the most similar chunk is easiest to find by direct
 similarity), not a system fault. Proof: two independent proxies (slug-based
 vs embedding-based) agree on the ranking exactly -- randomness could not
-produce that match.
+produce that match. Slug-gold detail (author index): Hit@1 0.68 / Hit@3
+0.85 / Hit@5 0.89 / Hit@10 0.94; rebuilt index Hit@10 0.86 --- paper 0.71 sits
+inside our pessimistic-to-optimistic range.
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab3_hit.png}\end{center}
 \textit{Figure 3 in depth:} x = K (top-1/3/5/10: how many top results we
 check), y = hit rate. Our full arm tracks paper ADGR from K=1 to K=10 (not a
@@ -216,6 +224,8 @@ one-step judging shortcut. \textbf{Layer 3 (what remains?):} stricter judge
 stated as a limit, not hand-waved). Relevancy 0.90, dim4 0.84 high. Precision
 0.86 vs 0.97: precise but under-covering (recall 0.64 vs 0.94 -- compact
 contexts have a price).
+Official-algorithm RAGAS on identical data: ans.rel. 0.66 (300 samples),
+ctx.rec. 0.64 (275), ctx.prec. 0.86 (46).
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab4_ragas.png}\end{center}
 \textit{Figure 4 in depth:} three pairs (Faithfulness, Answer relevancy,
 4-dim mean). Two pairs track; faithfulness diverges alone. The whole Table-4
@@ -241,8 +251,8 @@ included (they share one generator too).
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab5.png}\end{center}
 \textit{Figure 6 in depth:} bars = 5-run means, error bars = SEM (stability
 across runs: short bars mean re-judging 5 more times would give nearly the
-same numbers). ADGR bar highest \textit{with the smallest bars} -- high AND
-stable, not one lucky judging. Paper's 0.79 line sits below. \textit{On ``why
+same numbers). ADGR bar highest with the second-smallest bars (SEM 0.046 vs
+Mix 0.042; Hybrid 0.064) -- high AND stable, not one lucky judging. Paper's 0.79 line sits below. \textit{On ``why
 above paper'':} different judge calibration (measured $\sim$0.08 with the paper
 prompt), identical rankings, so comparison conclusions stand regardless of
 scale.
@@ -270,15 +280,18 @@ dimensions.
 All 4 arms spread (faith 0.36--0.42, recall 0.64--0.70); dense\_only weakest,
 no\_edge\_filter nearest full -- same module-importance order (anchors matter
 most: removing them drops RAGAS most in paper, 0.88$\rightarrow$0.72; edge
-filter matters least). Two arms were miscomputed against Sec.~5.8 and fixed
+filter matters least). Per-arm paper RAGAS: \texttt{dense\_only} 0.60;
+\texttt{dense\_anchors} 0.72; \texttt{no\_rerank} 0.77;
+\texttt{no\_edge\_filter} 0.85; full 0.88 --- the exact importance order.
+Two arms were miscomputed against Sec.~5.8 and fixed
 before measuring (rerank applied everywhere; graph sources in dense pool) --
 the current numbers are clean.
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab7_abl.png}\end{center}
 \textit{Figure 9 in depth:} our bars sit below paper RAGAS (different judge)
 but the \textbf{spread shape matches} -- same ordering, similar gaps.
 \textit{If asked ``does each component matter'':} point at the gaps between
-bars -- every removal drops scores in paper order. If bars were equal, that
-would mean dead architecture; they are not.
+bars -- every removal drops scores in paper order, unlike a dead architecture
+(equal bars).
 
 \subsection{Table 8 -- The Aescin case: compact yet accurate}
 Question: ``Who is Aescin contraindicated for?'' -- hard because it demands
@@ -288,6 +301,9 @@ Aspirin -- right concept, wrong entity, dangerously misleading), Mix 80, ADGR
 just 57 keeping the 3 needed Aescin relations (hypersensitivity, pregnant
 women, breastfeeding women). Ours: 12--14 entities / 39--41 relations -- same
 compact style (finer entity splitting explains more nodes, fewer edges).
+Judge agreement (Fleiss $\kappa$) on 270 samples: 0.19 (binary) / 0.14
+(3-level) --- after fixing a missing factor-2 bug in Po. Low agreement is a
+disclosed limit of automated judging, not a hidden flaw.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab8_case.png}\end{center}
 \textit{Figure 10 in depth (log scale: each notch is 10x, mandatory because
 139 vs 5 spans 28x -- linear axis would crush ADGR bars invisible):} ADGR
