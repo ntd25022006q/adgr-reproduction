@@ -105,11 +105,38 @@ for tag, fm, fs in [("author_index", "ir_metrics_v2.json", "ir_single_gold.json"
         rep["pending"].append(f"tab3 {tag} ({fm}/{fs})")
 
 # ---- Tab.4: RAGAS comparison ----
+def _ragas_means(rdict):
+    rows = [v for v in (rdict or {}).values() if isinstance(v, dict) and v]
+    comp = {}
+    for k in ("ans_rel_true", "ctx_rec_true", "ctx_prec_true"):
+        vs = [v[k] for v in rows if isinstance(v.get(k), (int, float))]
+        comp[k] = round(st.mean(vs), 4) if vs else None
+    return comp, len(rows)
+
+
 ra = load("ragas_true.json")
 if ra:
     ae = load("e2e_v3.json") or {}
     rows = [v for v in ae.values() if isinstance(v, dict) and v.get("ans")]
-    rep["tab4"]["adgr"] = {"ragas_true": ra, "judge_means": judge_means(rows)}
+    comp, _ = _ragas_means(ra)
+    jm = judge_means(rows)
+    fo = load("faith_official.json") or {}
+    fov = [v["faith_official"] for v in fo.values()
+           if isinstance(v, dict) and v.get("faith_official") is not None]
+    entry = {"ragas_true": ra, "judge_means": jm, "ragas_components": comp}
+    if fov:
+        # two-step official faithfulness on identical data (closes ~60% of the
+        # single-call gap: 0.41 -> 0.77 vs paper 0.89). Lives HERE, not as a
+        # manual patch (those get wiped by reruns - bug #43).
+        entry["faith_protocol_ablation"] = {
+            "single_call_solar": jm.get("faith"),
+            "two_step_solar": round(st.mean(fov), 4), "two_step_n": len(fov),
+            "paper_official_gpt55": 0.8878}
+        vals = [jm.get("faith"), comp.get("ans_rel_true"), comp.get("ctx_rec_true"),
+                comp.get("ctx_prec_true")]
+        if all(v is not None for v in vals):
+            entry["overall_ragas_like"] = round(sum(vals) / 4, 4)
+    rep["tab4"]["adgr"] = entry
 else:
     rep["pending"].append("tab4 adgr (ragas_true.json)")
 for m in ("hybrid", "mix"):
@@ -126,14 +153,30 @@ rp = load("ragas_paper.json")
 ep = load("e2e_paper.json")
 if rp and ep:
     rows = [v for v in ep.values() if isinstance(v, dict) and v.get("ans")]
-    rep["tab4"]["adgr_paper_index"] = {"ragas_true": rp, "judge_means": judge_means(rows)}
+    comp, _ = _ragas_means(rp)
+    jm = judge_means(rows)
+    entry = {"ragas_true": rp, "judge_means": jm, "ragas_components": comp}
+    vals = [jm.get("faith"), comp.get("ans_rel_true"), comp.get("ctx_rec_true"),
+            comp.get("ctx_prec_true")]
+    if all(v is not None for v in vals):
+        entry["overall_ragas_like"] = round(sum(vals) / 4, 4)
+    rep["tab4"]["adgr_paper_index"] = entry
 else:
     rep["pending"].append("tab4 adgr_paper_index (ragas_paper/e2e_paper)")
 
-# ---- Tab.5: standalone + 5-run ----
+# ---- Tab.5: standalone + 5-run (+ paper-prompt variant, persistent) ----
 t5 = load("tab5_5run_summary.json") or load("tab5_summary.json")
 if t5:
     rep["tab5"] = {"summary": t5, "source": "5run" if load("tab5_5run_summary.json") else "1run"}
+    # paper-prompt re-judge lives here permanently (a manual merge_patch once
+    # got wiped by the next FINAL rerun because it lived outside this script -
+    # bug #43: merge inputs must live IN the merge script, never as manual
+    # post-edits, or reruns silently drop them).
+    pp = load("tab5_paperprompt_summary.json")
+    if pp:
+        rep["tab5"]["paper_prompt"] = {
+            "summary": pp,
+            "note": "same answers/judge-model/runs; paper-exact prompt (Online Resource 1)"}
 else:
     rep["pending"].append("tab5 (tab5_5run_summary/tab5_summary)")
 

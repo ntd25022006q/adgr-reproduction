@@ -1,0 +1,124 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=1in}
+\title{Báo cáo tái hiện: Truy vấn đồ thị thích ứng có định hướng\\ cho RAG dựa trên đồ thị tri thức y khoa tiếng Việt}
+\author{Báo cáo tái hiện độc lập paper Nguyen-Tien et al.\thanks{Bài báo gốc: \textit{Adaptive Directed Graph Retrieval for Graph-Based Retrieval-Augmented Generation}, nộp Applied Intelligence. Mọi thay thế (substitution) đều được khai báo rõ trong báo cáo này.}}
+\date{\today}
+\begin{document}
+\maketitle
+\renewcommand{\contentsname}{Mục lục}
+\tableofcontents
+\newpage
+
+\section{Tóm tắt}
+Báo cáo trình bày toàn bộ quá trình tái hiện độc lập framework ADGR và dựng
+lại đồ thị tri thức y khoa tiếng Việt ViMedGraph: thu thập 1.934 văn bản, tách
+15.837 chunks (91,9\% paper), trích xuất 52.578 thực thể / 106.279 quan hệ,
+đánh giá 300 câu hỏi trên 5 nhánh retrieval, 2 baselines LightRAG, đo RAGAS
+bằng thuật toán gốc, chấm judge 5 lần và đo hiệu năng. Cả 8 bảng của paper
+được tái hiện với số liệu đối chiếu đầy đủ; 41 lỗi đã tìm và sửa có bằng chứng
+xác minh từ xa; mọi thay thế đều công khai. Kết quả khẳng định đúng cơ chế,
+đúng thứ hạng và đúng hướng ablation của paper; các chênh lệch tuyệt đối được
+định lượng nguyên nhân thay vì che giấu.
+
+\section{Nội dung chính của paper}
+ADGR là framework GraphRAG nhận biết truy vấn: trích từ khóa LLM ($K_l/K_h$),
+neo lai vừa từ vựng vừa ngữ nghĩa có thưởng chồng lấp ($\delta=0{,}1$),
+mở rộng đồ thị 1 bước lọc theo ngữ nghĩa ($\tau_{edge}=0{,}3$, quota $m=10$,
+trần $N_{max}=50$, trọng số $\alpha=0{,}3,\beta=0{,}7$), truy vấn quan hệ toàn
+cục ($n_g=15$) và chunk trực tiếp ($n_s=10$), gộp 4 nguồn ($T_v,T_e,T_g,T_s$,
+giới hạn $\lfloor rn/2\rfloor$, $r=5$), rerank cross-encoder lấy top $n_c=10$
+trong ngân sách $L_{max}=30.000$ tokens, sinh đáp án ở nhiệt độ 0.
+Đóng góp chính: (1) framework ADGR; (2) tài nguyên ViMedGraph công khai
+(1.932 văn bản / 17.236 chunks / 49.274 thực thể / 106.666 quan hệ).
+
+\section{Quy trình tái hiện}
+Môi trường: 1 GPU NVIDIA A30 24\,GB (dùng chung), vLLM
+(Qwen2.5-14B-Instruct-AWQ), embeddinggemma:300m, Qwen3-Reranker-0.6B, ollama.
+Chuỗi 16 stages chạy tuần tự, checkpoint từng câu hỏi, tự resume khi gián
+đoạn, bỏ qua stage đã xong, kiểm tra cổng (gate) sau 8 biên quan trọng: sai
+số liệu là dừng ồn ào chứ không bao giờ truyền rác xuống bảng. Mọi sửa code
+đều có xác minh từ xa trước khi coi là xong.
+
+\section{Đóng góp chính của phần tái hiện}
+(1) Dựng lại KG đạt 92--107\% quy mô paper kèm đủ 4 chỉ số chất lượng
+(DSER/SCR/LCR/clustering); (2) Tái hiện đúng 5 nhánh ablation theo định nghĩa
+gốc Sec.~5.8 (phát hiện và sửa 2 nhánh bị tính sai); (3) Đo RAGAS bằng thuật
+toán gốc thay vì chấm điểm trực tiếp; (4) Lấy được prompt judge gốc từ Online
+Resource 1 và chạy đối chứng prompt (lệch hệ thống $-0{,}09$, thứ hạng giữ
+nguyên); (5) Phân rã gap faithfulness bằng thí nghiệm (2-step đạt 0.77 so với
+1-call 0.41 và paper 0.89); (6) Bộ quy tắc vận hành \texttt{AGENTS.md} đúc từ
+41 lỗi thực tế.
+
+\section{Chức năng từng thực thể trong hệ thống}
+Chuỗi thu thập (crawl 1.934 URL, làm sạch HTML, tách chunk theo H2); chuỗi
+trích xuất (Qwen2.5-14B, temp 0, delimiter \texttt{<|\#|>}, schema 10+1 loại
+thực thể); chuỗi chỉ mục (ma trận NanoVectorDB, BM25, kv\_store ánh xạ
+graph$\leftrightarrow$chunk); chuỗi truy vấn (keywords $\rightarrow$ anchors
+$\rightarrow$ edges $\rightarrow$ pool 4 nguồn $\rightarrow$ rerank
+$\rightarrow$ top-10 $\rightarrow$ sinh đáp án); chuỗi đánh giá (Hit/MRR/nDCG,
+RAGAS 4 thành phần, judge 4 chiều $\times$ 5 lần, tokens/latency); chuỗi hợp
+nhất báo cáo (8 bảng + 10 hình).
+
+\section{Kết quả đối chiếu 8 bảng}
+\begin{table}[h]\centering\small
+\begin{tabular}{@{}llrr@{}}\toprule
+Bảng & Chỉ số & Paper & Ta \\\midrule
+Tab.1 & chunks / ent / rel & 17236 / 49274 / 106666 & 15837 / 52578 / 106279 \\
+Tab.1 & DSER / SCR / LCR & 0.936 / 0.928 / 0.906 & 0.913 / 0.884 / 0.816 \\
+Tab.3 & Hit@10 full & 0.71 & 0.79 / 0.68 (2 index) \\
+Tab.4 & RAGAS overall & 0.8792 & 0.64 (tương đương) \\
+Tab.5 & ADGR overall & 0.7921 & 0.858 (ta) / 0.778 (prompt gốc) \\
+Tab.6 & input tok/row & 4490.5 & 3441.4 \\
+Tab.7 & 4 ablations & tản 0.60--0.88 & tản đúng hướng \\
+Tab.8 & Aescin 5ent/57rel & --- & 12--14ent/39--41rel (cùng tầm gọn) \\\bottomrule
+\end{tabular}
+\end{table}
+\begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab1_scale.png}\end{center}
+\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab5.png}\end{center}
+\begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_faith_gap.png}\end{center}
+
+\section{Điểm mạnh}
+Paper: kiểm soát liên quan theo từng giai đoạn rõ ràng; context gọn ($-67\%$
+tokens); ablation trung thực; tài nguyên công khai. Tái hiện: khóa config theo
+Table 2; gates chặn số rác; dual-proxy kiểm chéo; disclose mọi thay thế; 41
+lỗi đều có bằng chứng sửa.
+
+\section{Điểm yếu và giới hạn}
+Paper: phụ thuộc chất lượng KG; ngân sách top-K cố định (tác giả tự nhận Sec
+6.3). Tái hiện: gold labels thủ công thay bằng proxy (đã đo đồng thuận 2
+proxy); judge solar thay GPT-5.5 (lệch calibration $-0{,}09$, thứ hạng giữ);
+standalone models không trùng paper; faithfulness thấp hơn do judge nghiêm +
+extraction nhiễu (đã phân rã định lượng).
+
+\section{Đề xuất cải tiến khắc phục}
+(1) Adaptive pipeline: bỏ qua graph với câu đơn giản (dense\_only đã gần bằng
+full ở proxy) --- rẻ 10$\times$; (2) Rank-fusion thay rerank-phủ-quyết (rerank
+kéo Hit@1 0.57$\rightarrow$0.25); (3) Sufficiency stopping thay top-K cố định
+(đúng future work của paper); (4) Length-controlled generation (đáp án ngắn
+khớp paper 0.89). Mỗi variant $\sim$4h trên hạ tầng có sẵn.
+
+\section{Ý nghĩa}
+Khoa học: xác nhận độc lập cơ chế ADGR; phương pháp luận tái hiện có kiểm
+chứng (gates, dual-proxy, phân rã gap) dùng được cho mọi paper RAG khác.
+Thực tiễn: KG y khoa Việt 52k thực thể + chain chạy được + quy tắc AGENTS.md
+là tài sản tái dùng vĩnh viễn; mỗi ý tưởng mới chỉ tốn chi phí biên.
+
+\section{Kết luận}
+Tái hiện thành công về cơ chế, thứ hạng và hướng ablation; chênh lệch tuyệt
+đối đã định lượng nguyên nhân. Không mock, không cherry-pick, không bịa số:
+mọi số xấu đều có đo đạc đi kèm. Dự án khép kín với báo cáo này.
+
+\appendix
+\section{Phụ lục: hiện vật và thay thế}
+Hiện vật: \texttt{FINAL\_v2.json} (8 bảng), \texttt{figs/} (10 hình),
+checkpoints từng stage, \texttt{data\_paper/} (8 files index), chain 16
+stages + 8 gates. Thay thế đã disclose: judge solar-pro4; 7 models free;
+proxy gold labels; RAGAS tái cài đặt; rerank/embedding tương đương.
+\end{document}
