@@ -50,7 +50,7 @@ hợp lệ / entity nằm trong cụm liên thông lớn).
 \item Dựng lại toàn bộ ADGR từ bài báo: corpus, KG, retrieval, evaluation.
 \item Số nào khớp thì ghi khớp, số nào lệch thì đo ra nguyên nhân, không giấu
 số xấu.
-\item Đầu ra: bảng số tổng hợp + 10 hình + báo cáo này, sẵn sàng thuyết trình.
+\item Đầu ra: bảng số tổng hợp + 11 hình + báo cáo này, sẵn sàng thuyết trình.
 Mỗi hình có hướng dẫn đọc riêng: hình nói gì, đọc thế nào, kết luận gì, đáp
 câu hỏi phản biện ra sao.
 \end{itemize}
@@ -65,8 +65,8 @@ chunk (91,9\% bài báo; min 126, median 799, mean 1.079 ký tự). Khó: tác g
 không công bố code chunker nên suy ngược quy tắc H2 từ văn bản rồi kiểm bằng
 số lượng.
 \item \textbf{KG:} Qwen2.5-14B temp 0 trích từng chunk $\rightarrow$ 52.578
-entity / 106.279 relation (bài báo: 49.274 / 106.666); trung bình 3,3
-entity/chunk (chunk dày thuật ngữ nhất: 171 entity). Khó: 15.837 chunk qua
+entity / 106.279 relation (bài báo: 49.274 / 106.666); trung bình 3,3 entity
+riêng/chunk (chunk dày nhất: 171 lượt trích). Khó: 15.837 chunk qua
 GPU hàng chục giờ, output thỉnh thoảng sai định dạng; checkpoint từng chunk +
 defensive parsing nên sập chỉ mất đúng chunk đang chạy.
 \item \textbf{Retrieval:} 300 câu $\times$ 5 arm (full + 4 ablation, mỗi arm
@@ -83,7 +83,7 @@ phát hiện --- từ đó mọi hàm judge có quota guard: key chết là dừ
 validation gate sau mỗi chặng (số xấu là exit 99 ầm ĩ, 8 biên); mọi lỗi sửa có
 bằng chứng verify trên máy (tổng 43 lỗi).
 \item \textbf{Ngân sách tài nguyên (đo thật):} vLLM 3 mức đã kiểm chứng
-(32k/0,72; 12k/0,62; 8k/0,50-8192; KV 1,91GB $<$ 2,25GB nên mức 12k hạ maxlen
+(32k/0,72; 12k/0,62; 8k/0,50 với maxlen 8192; KV 1,91GB $<$ 2,25GB nên mức 12k hạ maxlen
 xuống 8192); một GPU chia 4 việc nên keyword rút bằng CPU; Solar giới hạn 100
 req/phút nên judge leo thang minimal x3 $\rightarrow$ low x1 (116 so với 3.273
 token, rẻ 28 lần); lỗi 429 thì retry và không tính run lỗi vào $n$ (mẫu
@@ -110,15 +110,17 @@ không mạo danh số paper; công bố cả hai thang.
 \item \textbf{Standalone:} 7 mô hình trả phí của bài báo $\rightarrow$ 7 mô
 hình miễn phí, zero overlap (chỉ làm mốc tham khảo, không so với bài báo).
 \item \textbf{Chunker:} suy ngược quy tắc H2 (không có code; khớp 91,9\% theo
-số lượng; hệ quả đo được: entity/chunk 3,3 và LCR thấp hơn).
+số lượng; hệ quả đo được: mật độ trích $\sim$9,4 lượt/chunk (Hình 11) và LCR
+thấp hơn).
 \item \textbf{RAGAS:} tự cài đặt theo công thức công bố thay vì lib chính
-thức (để dùng chung judge solar, kiểm soát chi phí; chạy trên 295--300 mẫu,
-công thức đã đối chiếu).
+thức (để dùng chung judge solar, kiểm soát chi phí; RAGAS-chuẩn chạy trên 300
+mẫu trong đó ctx.rec. đủ dữ liệu 275 mẫu, ctx.prec. 46 mẫu; công thức đã đối
+chiếu).
 \item \textbf{Faithfulness 1 bước} thay vì 2 bước chuẩn (rẻ hơn nhiều; đã đo
-ảnh hưởng trên cùng dữ liệu: 0,41 so với 0,77 --- công bố cả hai, xem Hình 5).
+ảnh hưởng trên cùng dữ liệu: 0,41 so với 0,77 --- công bố cả hai, xem Hình 6).
 \item \textbf{Prompt chấm riêng} + đối chiếu prompt gốc (Online Resource 1)
 trên 3.000 lượt chấm (prompt gốc khó hơn $\sim$0,08 nhưng giữ nguyên thứ
-hạng --- xem Hình 7).
+hạng --- xem Hình 8).
 \end{itemize}
 
 %====================================================================
@@ -168,7 +170,7 @@ OOM giữa chừng, luôn trả đúng số score bằng số doc (đã verify h
 \item \textbf{Judge:} Hit/MRR/nDCG (dual proxy), 4 thành phần RAGAS, 4 dim
 $\times$ 5 run (leo thang minimal x3 $\rightarrow$ low x1: 116 so với 3.273
 token, rẻ 28 lần; quota guard dừng ầm ĩ), timer token/latency.
-\item \textbf{Merger:} gom 8 bảng + 10 hình; thiếu file nào vào danh sách
+\item \textbf{Merger:} gom 8 bảng + 11 hình; thiếu file nào vào danh sách
 pending, không lặng lẽ bỏ qua (FINAL hiện pending rỗng).
 \end{itemize}
 
@@ -177,11 +179,11 @@ pending, không lặng lẽ bỏ qua (FINAL hiện pending rỗng).
 \begin{table}[h]\centering\footnotesize
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{@{}llrr@{}}\toprule
-Bảng & Chỉ số & Bài báo & Ta (chỉ mục gốc / chỉ mục dựng lại) \\\midrule
+Bảng & Chỉ số & Bài báo & Ta (index tác giả / index dựng lại) \\\midrule
 1 & chunk / entity / relation & 17236 / 49274 / 106666 & 15837 / 52578 / 106279 \\
 1 & DSER / SCR / LCR & 0,936 / 0,928 / 0,906 & 0,913 / 0,884 / 0,816 \\
 3 & Hit@1 / Hit@10 bản đủ & 0,5967 / 0,7100 & 0,4333 / 0,7933 ; 0,6833* \\
-3 & MRR / nDCG@10 bản đủ & 0,6437 / 0,6606 & 0,5538* / 0,6118* (0,3849 / 0,4573*) \\
+3 & MRR / nDCG@10 bản đủ & 0,6437 / 0,6606 & 0,5538* / 0,6118* (0,3849* / 0,4573*) \\
 4 & RAGAS / faith. / ans.rel. / ctx.rec. / ctx.prec. & 0,8792 / 0,8878 / 0,7124 / 0,9433 / 0,9733 & 0,64 / 0,41 / 0,90 / 0,64 / 0,86 \\
 4 & faithfulness 2 bước & --- & 0,77 (xem phân tích) \\
 5 & ADGR / Mix / Hybrid & 0,7921 / 0,7671 / 0,7151 & 0,858 / 0,858 / 0,829 (ta); 0,778 / 0,781 / 0,740 (prompt gốc) \\
@@ -194,8 +196,9 @@ Bảng & Chỉ số & Bài báo & Ta (chỉ mục gốc / chỉ mục dựng l�
 
 \subsection{Bảng 1 -- Quy mô và chất lượng KG, từng ô số}
 Thiếu 8\% chunk (5 link chết + gộp mục nhỏ --- cả hai đã đo và liệt kê).
-Entity +6,7\%: chunk to hơn nên mỗi chunk chứa nhiều entity hơn (3,3/chunk)
---- hệ quả của chunker, không phải trích giỏi hơn. Relation $-$0,4\%: gần như
+Entity +6,7\%: chunk to hơn nên mỗi chunk chứa nhiều entity hơn (3,3 entity
+riêng/chunk; mật độ kể cả lặp lại $\sim$9,4 lượt/chunk so với $\sim$2,9 của
+paper --- xem Hình 11) --- hệ quả của chunker, không phải trích giỏi hơn. Relation $-$0,4\%: gần như
 y hệt, chứng tỏ trích quan hệ tương đương. DSER/SCR trên 0,88 (hơn 88\% đúng
 khuôn mẫu). LCR 0,82 so với 0,91: 18\% entity nằm trên đảo tách rời (bài báo:
 9\%) --- tính lại từ extraction thô thay vì bỏ qua. Clustering 0,11 so với
@@ -212,6 +215,14 @@ hợp lệ), LCR (\% entity trong cụm lớn). Cả ba trên 0,81, cách 2--9 �
 \textit{Hố sâu nhất:} LCR kém 9 điểm, truy ra chunker to (chunk dài ôm nhiều
 chủ đề rời, entity các chủ đề không nối nhau). Retrieval vẫn tốt (Bảng 3) nên
 cụm lõi đủ dùng --- đảo lẻ chủ yếu entity hiếm.
+\begin{center}\includegraphics[width=0.7\textwidth]{figs/fig_rates.png}\end{center}
+\textit{Hình 3 đọc kỹ (mật độ trích: số lượt entity mỗi chunk, kể cả lặp lại
+giữa các chunk):} chunker của ta $\sim$9,4 lượt/chunk, gấp 3 lần chunker tác
+giả ($\sim$3,3) và paper ($\sim$2,9). \textit{Kết luận:} máy trích của ta không
+tham hơn --- chạy nó trên chunk kiểu tác giả thì mật độ khớp paper ngay (cột
+giữa $\approx$ cột phải). Mật độ cao là hệ quả thuần của chunk to, và nó giải
+thích luôn LCR thấp (chunk ôm nhiều chủ đề rời) lẫn entity đếm riêng chỉ 3,3
+mà lượt trích tới 9,4 (cùng entity lặp lại qua nhiều chunk).
 
 \subsection{Bảng 3 -- Tỉ lệ tìm đúng, giải thích thứ tự lạ}
 Hit@10 bản đủ: 0,79 / 0,68 so với bài báo 0,71 --- cùng tầm trên proxy; chênh
@@ -220,11 +231,11 @@ nội bộ tạo tin cậy). Thứ tự \texttt{dense\_only} (0,90) $>$ \texttt{
 (0,89) $>$ full (0,79): hệ quả toán học của định nghĩa single-gold (chunk
 giống nhất thì dense trực tiếp dễ trúng nhất), không phải máy hỏng. Bằng
 chứng: 2 proxy độc lập (slug vs embedding) cho cùng thứ tự --- ngẫu nhiên
-không trùng được. Chi tiết thang slug-gold chỉ mục gốc: Hit@1 0,68 / Hit@3
-0,85 / Hit@5 0,89 / Hit@10 0,94; chỉ mục dựng lại Hit@10 0,86 --- số bài báo
+không trùng được. Chi tiết thang slug-gold index tác giả: Hit@1 0,68 / Hit@3
+0,85 / Hit@5 0,89 / Hit@10 0,94; index dựng lại Hit@10 0,86 --- số bài báo
 0,71 nằm trong khoảng thang bi quan và lạc quan của ta.
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab3_hit.png}\end{center}
-\textit{Hình 3 đọc kỹ:} ngang = K (soi top-1/3/5/10), dọc = hit rate. Đường
+\textit{Hình 4 đọc kỹ:} ngang = K (soi top-1/3/5/10), dọc = hit rate. Đường
 full của ta bám ADGR bài báo từ K=1 đến K=10 (không phải trùng 1 điểm; Hit@1
 0,43 so với 0,60 là yếu thật ở hạng đầu, nhưng hội tụ từ Hit@5 --- bằng chứng
 CÓ tìm ra, chỉ hạng đầu chưa cao). 5 đường tách 0,79--0,90: các ablation khác
@@ -242,12 +253,12 @@ gọn nhưng chưa đủ (recall 0,64 so với 0,94 --- gọn phải trả giá 
 thuật toán RAGAS chuẩn cho ans.rel. 0,66 (300 mẫu), ctx.rec. 0,64 (275 mẫu),
 ctx.prec. 0,86 (46 mẫu)).
 \begin{center}\includegraphics[width=0.75\textwidth]{figs/fig_tab4_ragas.png}\end{center}
-\textit{Hình 4 đọc kỹ:} 3 cặp (faithfulness, answer relevancy, trung bình 4
+\textit{Hình 5 đọc kỹ:} 3 cặp (faithfulness, answer relevancy, trung bình 4
 dim). Hai cặp bám nhau, chỉ faithfulness tách. Toàn bộ hố Bảng 4 nằm đúng 1 ô
 --- mở hình này khi bị hỏi máy yếu ở đâu, rồi đi từng lớp (mỗi lớp có số
 riêng).
 \begin{center}\includegraphics[width=0.7\textwidth]{figs/fig_faith_gap.png}\end{center}
-\textit{Hình 5 đọc kỹ:} 0,41 $\rightarrow$ 0,77 $\rightarrow$ 0,89, mỗi bước là
+\textit{Hình 6 đọc kỹ:} 0,41 $\rightarrow$ 0,77 $\rightarrow$ 0,89, mỗi bước là
 một thực nghiệm tách nguyên nhân. \textit{Nếu bị hỏi ``sao không sửa cho
 khớp'':} sửa thật cần đổi judge (không có quyền); bóp cách chấm cho số đẹp là
 gian lận chỉ số --- từ chối vì nguyên tắc.
@@ -260,15 +271,14 @@ hơn $\sim$0,08 (cơ chế phạt dài dòng đánh câu dài) --- đo trên 3.0
 hệt/gần giống (chung generator temp 0 + ngữ cảnh trùng) --- đặc tính của mọi
 so sánh RAG chung máy sinh, bài báo cũng vậy.
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab5.png}\end{center}
-\textit{Hình 6 đọc kỹ:} cột = mean 5 run, râu = SEM (ổn định giữa các lượt: râu
+\textit{Hình 7 đọc kỹ:} cột = mean 5 run, râu = SEM (ổn định giữa các lượt: râu
 ngắn nghĩa là chấm thêm 5 lượt số vẫn gần như cũ). Cột ADGR cao nhất với râu
 ngắn thứ hai (SEM 0,046 so với Mix 0,042; Hybrid 0,064) --- vừa cao vừa ổn
-định, không phải may mắn một lượt. Vạch 0,79
-bài báo nằm dưới. \textit{Nếu bị hỏi ``sao cao hơn bài báo'':} khác thang judge
+định, không phải may mắn một lượt. Vạch 0,79 bài báo nằm dưới. \textit{Nếu bị hỏi ``sao cao hơn bài báo'':} khác thang judge
 (đã đo $\sim$0,08 với prompt gốc), thứ hạng giống hệt, kết luận so sánh đứng
 vững bất kể thang.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab5_prompt.png}\end{center}
-\textit{Hình 7 đọc kỹ:} mỗi mô hình 2 cột theo prompt. Mô hình dài dòng (14B
+\textit{Hình 8 đọc kỹ:} mỗi mô hình 2 cột theo prompt. Mô hình dài dòng (14B
 $\sim$500 từ/câu, cf-llama 647 từ) rớt mạnh nhất dưới prompt gốc, mô hình ngắn
 gần như không đổi. \textit{Kết luận:} cơ chế phạt dài dòng của prompt gốc hoạt
 động đúng thiết kế; kết quả bền với cách viết prompt (10 phương pháp, 0 đảo
@@ -281,7 +291,7 @@ khác biệt thành phần này). Retrieval 2,36s so với 3,19s (chỉ mục nh
 keyword); generation 5,82s so với 6,66s (ngữ cảnh ngắn sinh nhanh hơn). Tổng
 retrieval+generation: 9,85s $\rightarrow$ 8,18s.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab6_eff.png}\end{center}
-\textit{Hình 8 đọc kỹ:} trái (token), phải (latency, vạch đứt là bài báo). Cột
+\textit{Hình 9 đọc kỹ:} trái (token), phải (latency, vạch đứt là bài báo). Cột
 của ta thấp hơn khắp nơi. \textit{Lập luận kinh tế:} tốn công retrieval để tiết
 kiệm công generation --- tổng rẻ hơn, đúng đánh đổi ADGR quảng cáo, tái hiện
 cả hai chiều chi phí.
@@ -297,7 +307,7 @@ khâu anchor sống còn. Chi tiết RAGAS bài báo từng arm: \texttt{dense\_
 \texttt{no\_edge\_filter} 0,85; full 0,88 --- đúng thứ tự quan trọng giảm dần.
 Hai arm từng tính sai mô tả đã sửa trước khi đo (rerank lén + trộn nguồn).
 \begin{center}\includegraphics[width=0.85\textwidth]{figs/fig_tab7_abl.png}\end{center}
-\textit{Hình 9 đọc kỹ:} cột ta thấp hơn RAGAS bài báo (khác judge) nhưng
+\textit{Hình 10 đọc kỹ:} cột ta thấp hơn RAGAS bài báo (khác judge) nhưng
 \textbf{hình dáng độ chênh khớp} --- cùng thứ tự, chênh tương tự.
 \textit{Nếu bị hỏi ``module nào cũng cần à'':} chỉ khoảng cách giữa các cột
 --- tháo module nào điểm cũng rớt đúng thứ tự bài báo, ngược với kiến trúc
@@ -315,7 +325,7 @@ edge hơn).
 (3 mức) --- đã sửa bug thiếu hệ số 2 trong Po. Mức đồng thuận thấp là giới hạn
 của chấm tự động, đã công bố chứ không giấu.
 \begin{center}\includegraphics[width=0.8\textwidth]{figs/fig_tab8_case.png}\end{center}
-\textit{Hình 10 đọc kỹ (trục log: mỗi nấc gấp 10 lần, bắt buộc vì 139 so với 5
+\textit{Hình 11 đọc kỹ (trục log: mỗi nấc gấp 10 lần, bắt buộc vì 139 so với 5
 chênh 28 lần --- trục thường ép cột ADGR thành vô hình):} ngữ cảnh ADGR nhỏ
 hơn baseline cả chục lần. Đây là bằng chứng ``gọn mà trúng'' trực quan nhất cả
 báo cáo.
@@ -330,13 +340,13 @@ Chunk / relation & 17236 / 106666 & 15837 / 106279 & KHỚP (92\% / $-$0,4\%) \\
 Entity / DSER / SCR & 49274 / 0,936 / 0,928 & 52578 / 0,913 / 0,884 & GẦN (2--6 điểm, do chunker to) \\
 LCR & 0,906 & 0,816 & GIẢI THÍCH ĐƯỢC (chunk dài ôm nhiều chủ đề rời) \\
 Hit@10 bản đủ & 0,71 & 0,79 / 0,68 & KHỚP (trong khoảng 2 proxy) \\
-RAGAS tổng & 0,8792 & 0,64 tương đương & GIẢI THÍCH ĐƯỢC (mổ ở Hình 5) \\
+RAGAS tổng & 0,8792 & 0,64 tương đương & GIẢI THÍCH ĐƯỢC (mổ ở Hình 6) \\
 Faithfulness & 0,8878 & 0,41 / 0,77 (2 bước) & GIẢI THÍCH 3 lớp (câu ngắn khớp; chấm tắt; judge khó) \\
 Ans.rel. / ctx.prec. & 0,7124 / 0,9733 & 0,90 / 0,86 ; 0,66 / 0,86 (chuẩn) & GẦN--KHỚP \\
 Ctx recall & 0,9433 & 0,64 (chuẩn) & CÒN HỐ (nhiễu gộp + bao phủ; đã công bố) \\
 Bảng 5 ADGR & 0,7921 & 0,858 / 0,778 & KHỚP (số paper trong khoảng 2 prompt) \\
 Bảng 5 thứ hạng & ADGR$>$Mix$>$Hyb$>$chay & giống hệt, cả 2 prompt & KHỚP TUYỆT ĐỐI \\
-Bảng 6 token / giờ & 4490 / 3,2s+6,7s & 3441 / 2,4s+5,8s & VƯỢT (gọn hơn, cùng phương pháp) \\
+Bảng 6 token / thời gian & 4490 / 3,2s+6,7s & 3441 / 2,4s+5,8s & VƯỢT (gọn hơn, cùng phương pháp) \\
 Bảng 7 độ chênh & 0,60--0,88 & chênh đã rõ & KHỚP HƯỚNG \\
 Bảng 8 gọn & 5/57 so với 139 & 12--14/39--41 so với lớn & KHỚP PHONG CÁCH \\\bottomrule
 \end{tabular}}%
