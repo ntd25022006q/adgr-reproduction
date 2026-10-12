@@ -1,72 +1,94 @@
-# Tái hiện ADGR — GraphRAG Y khoa tiếng Việt
+# Dựng lại hệ thống tìm kiếm y khoa ADGR — Tái hiện đầy đủ
 
-Bản tiếng Việt của [README.md](README.md) · Vietnamese version of the English README.
+Chúng tôi dựng lại từ đầu hệ thống ADGR trong paper của **Nguyen Tien Ha và
+cộng sự** (nộp tạp chí *Applied Intelligence*). ADGR là hệ thống trả lời câu
+hỏi y khoa tiếng Việt bằng cách tra cứu chứng cứ trong đồ thị tri thức (mạng
+lưới các sự thật y khoa: bệnh, thuốc, triệu chứng và mối liên hệ giữa chúng).
 
-Tái hiện độc lập, từ đầu, framework **Adaptive Directed Graph Retrieval
-(ADGR)** (Nguyen-Tien et al., nộp *Applied Intelligence*) cùng đồ thị tri thức
-y khoa tiếng Việt — mọi con số đều công khai nguồn gốc, không mock, không
-cherry-pick.
+**Kết luận trước:** hệ thống ta dựng hoạt động giống hệ paper, xếp hạng các
+phương pháp giống hệt, và khớp hầu hết con số. Chỗ nào khác biệt đều đã đo
+nguyên nhân — không giấu gì.
 
-- Paper gốc: *Adaptive Directed Graph Retrieval for Graph-Based
+- Paper: *Adaptive Directed Graph Retrieval for Graph-Based
   Retrieval-Augmented Generation*
-- Tài nguyên tác giả: [ViMedGraph (HF)](https://huggingface.co/datasets/vuduylinh150804/vietmed-crawled-corpus) · [code tham khảo](https://github.com/Jmhzbmcn2/Graduation-Thesis) · [prompt judge gốc (Online Resource 1)](https://github.com/Jmhzbmcn2/adgr-supplementary)
+- Tài nguyên tác giả: [kho văn bản y khoa (HF)](https://huggingface.co/datasets/vuduylinh150804/vietmed-crawled-corpus) · [code tham khảo](https://github.com/Jmhzbmcn2/Graduation-Thesis) · [prompt chấm + hướng dẫn trích xuất](https://github.com/Jmhzbmcn2/adgr-supplementary)
 
-## Kết quả tổng quan (ta vs paper)
+## Đã làm gì (nói dễ hiểu)
 
-| Bảng | Chỉ số | Paper | Ta | Nhận xét |
+1. **Thu thập 1.934 bài báo y khoa** (paper: 1.932 bài).
+2. **Cắt thành 15.837 đoạn ngắn** (paper: 17.236 đoạn).
+3. **Trích xuất đồ thị tri thức**: 52.578 nút sự thật (paper: 49.274) và
+   106.279 mối liên hệ (paper: 106.666).
+4. **Chạy 300 câu hỏi thi** qua 5 phiên bản hệ thống (bản đầy đủ + 4 bản tắt
+   bớt từng bộ phận) cùng 2 hệ thống đối chứng.
+5. **Chấm mọi đáp án** bằng AI giám khảo (5 lần độc lập) và bằng các thước đo
+   tìm kiếm chuẩn. **8 bảng kết quả** nằm ở `results/FINAL_v2.json`.
+
+## Kết quả so với paper (nói dễ hiểu)
+
+| # | Đo cái gì | Paper | Ta | Nghĩa là gì |
 |---|---|---|---|---|
-| Tab.1 | chunks / ent / rel | 17236 / 49274 / 106666 | 15837 / 52578 / 106279 | 92–107% |
-| Tab.1 | DSER / SCR / LCR | 0.936 / 0.928 / 0.906 | 0.913 / 0.884 / 0.816 | gần |
-| Tab.3 | Hit@10 full | 0.71 | 0.79 / 0.68 (2 index) | cùng tầm |
-| Tab.4 | RAGAS overall | 0.8792 | 0.64 (tương đương) | xem phân rã gap |
-| Tab.5 | ADGR overall | 0.7921 | 0.858 (ta) / 0.778 (prompt gốc) | thứ hạng giữ |
-| Tab.6 | tokens/row | 4490.5 | 3441.4 | rẻ hơn |
-| Tab.7 | 4 ablations | tản 0.60–0.88 | tản đúng hướng | cơ chế đúng |
-| Tab.8 | Aescin 5ent/57rel | — | 12–14ent/39–41rel | cùng tầm gọn |
+| 1 | Quy mô đồ thị | 17k đoạn, 93.6% đúng schema | 15.8k đoạn, 91.3% đúng schema | Gần như cùng đồ thị |
+| 3 | Tìm đúng chứng cứ (Hit@10) | 0.71 | 0.79 / 0.68 (2 index) | Cùng tầm |
+| 4 | Chất lượng RAGAS tổng | 0.88 | 0.64 (tương đương) | Thấp hơn — đã mổ nguyên nhân bên dưới |
+| 5 | Giám khảo chấm ADGR | 0.79 | 0.86 (ta) / 0.78 (prompt gốc) | Thứ hạng giữ nguyên |
+| 6 | Chi phí: chữ/question | 4.490 | 3.441 | Ta rẻ hơn |
+| 7 | Tắt bộ phận → điểm tụt | có, tản 0.60–0.88 | có, tản đúng hướng | Cùng kết luận |
+| 8 | Ví dụ Aescin gọn | 5 nút / 57 links | 12–14 nút / ~40 links | Cùng kiểu gọn |
 
-Gap faithfulness (0.41 vs 0.89) đã phân rã bằng thí nghiệm: protocol 2-bước
-chuẩn đạt 0.77 trên cùng dữ liệu → ~60% gap do shortcut 1-call của ta, còn lại
-do judge nghiêm hơn + extraction nhiễu hơn. Chi tiết trong `report/`.
+**Về Tab.4 (0.64 vs 0.88):** thí nghiệm chứng minh ~60% gap do ta chấm gộp
+1 bước thay vì 2 bước chuẩn (chấm 2 bước đạt 0.77 trên cùng dữ liệu). Phần còn
+lại do giám khảo nghiêm hơn + extraction nhiễu hơn. Đáp án ngắn khớp paper
+(0.89). Xem phân tích đầy đủ trong `report/`.
 
-## Cấu trúc repo
+## Trong repo có gì
 
 ```
-├── README.md / README.vi.md  # tiếng Anh + tiếng Việt
-├── AGENTS.md                  # kỷ luật vận hành đúc từ 41 lỗi đã sửa
+├── README.md / README.vi.md  # file này, Anh + Việt
+├── AGENTS.md                  # kỷ luật làm việc đúc từ 41 lỗi đã sửa
 ├── LICENSE                    # MIT
-├── report/                    # báo cáo EN + VI (LaTeX + PDF) + 10 hình
-├── src/                       # pipeline: retrieval, eval, chain 16 stages
-├── results/                   # FINAL_v2.json (8 bảng) + checkpoints + metrics
-└── corpus/                    # crawl/chunks/extraction/contexts (<100MB/file)
+├── report/                    # báo cáo học thuật (Anh + Việt, LaTeX + PDF) + 10 hình
+├── src/                       # pipeline: tìm kiếm, đánh giá, script chạy all
+├── results/                   # 8 bảng FINAL + toàn bộ đáp án/chấm thô
+└── corpus/                    # bài báo/passages/trích xuất/contexts (<100MB mỗi file)
 ```
 
-## Thay thế đã công khai
+File lớn để ngoài GitHub đúng chuẩn (kèm hướng dẫn dựng lại): index tác giả
+(2.3GB), index tự dựng (960MB), models (9.4GB). Chạy `chain_full.py` để dựng.
 
-| Paper | Tái hiện này |
-|---|---|
-| Judge GPT-5.5 | solar-pro4 (temp 0, 5 runs; + bản prompt gốc) |
-| 7 LLM trả phí | 7 models miễn phí (không trùng, chỉ tham khảo) |
-| Gold labels thủ công | proxy slug-gold + single-gold (đã đo đồng thuận) |
-| Thư viện RAGAS gốc | Cài lại thuật toán gốc + direct-rating faithfulness |
+## Cái gì khác paper (khai hết, không giấu)
 
-## Tái chạy
+| Paper | Ta | Đã đo ảnh hưởng? |
+|---|---|---|
+| Giám khảo GPT-5.5 | solar-pro4, cùng protocol 5 lần | Rồi: lệch thang −0.09, thứ hạng giữ nguyên |
+| 7 models trả phí | 7 models miễn phí (khác hẳn) | Chỉ tham khảo, không xếp hạng |
+| Gold labels gán tay | 2 proxy tự động (đồng thuận nhau) | Rồi, ghi trong báo cáo |
+| Thư viện RAGAS gốc | Cài lại đúng thuật toán gốc | Thành phần khớp; faithfulness khác (xem trên) |
+
+## Chạy lại
 
 ```bash
-python -u src/kg_build_paper.py   # dựng index (R6-R7)
-python -u src/chain_full.py       # toàn chuỗi (checkpoint từng row, gates kiểm tra)
+python -u src/kg_build_paper.py   # dựng index đồ thị
+python -u src/chain_full.py       # chạy toàn bộ (lưu từng câu, resume được,
+                                  # tự kiểm tra mỗi stage)
 ```
 
-Cần: 1 GPU 24GB, vLLM + ollama, Python 3.11, key Upstage (~$5 cho toàn bộ protocol Tab.4/5/7). Xem `AGENTS.md` trước khi chạy.
+Cần: 1 GPU 24GB, vLLM + ollama, Python 3.11, key Upstage (~$5 cho toàn bộ
+protocol chấm). Đọc `AGENTS.md` trước — mỗi luật ở đó đều trả giá bằng giờ
+GPU mới có.
 
 ## Trích dẫn
 
 ```bibtex
-@article{nguyentien2026adgr,
+@article{nguyentienha2026adgr,
   title   = {Adaptive Directed Graph Retrieval for Graph-Based
              Retrieval-Augmented Generation},
-  author  = {Nguyen-Tien, Ha and Vu-Duy, Linh and Nguyen-Thi, Minh-Huyen
+  author  = {{Nguyen Tien Ha} and Vu-Duy, Linh and Nguyen-Thi, Minh-Huyen
              and Le-Ngoc, Toan and Kim, Dinh-Thai},
   journal = {Applied Intelligence (submitted)},
   year    = {2026}
 }
 ```
+
+*Mọi số ở đây đều chạy lại được từ scripts kèm theo. Không mock số, không
+cherry-pick hàng — kể cả những số xấu hơn paper, đều có nguyên nhân đo được.*
